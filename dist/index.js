@@ -22,7 +22,7 @@ const program = new commander_1.Command();
 program
     .name('crm')
     .description('OTD CRM Command Line Interface')
-    .version('0.1.0')
+    .version('0.2.1')
     .addHelpText('after', `
 Getting Started:
   1. Login to CRM
