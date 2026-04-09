@@ -108,7 +108,7 @@ class ConfigManager {
     }
     getDefaultProfileConfig() {
         return {
-            api_url: process.env.CRM_API_URL || 'https://crm.otd.com/api',
+            api_url: process.env.CRM_API_URL || 'https://app.otd-odincloud.com',
             timeout: 30000,
         };
     }
