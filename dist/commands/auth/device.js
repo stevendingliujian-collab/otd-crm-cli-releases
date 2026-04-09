@@ -59,7 +59,12 @@ Examples:
                 }));
             }
             else {
-                error_handler_1.errorHandler.handle(error);
+                const cliError = error_handler_1.errorHandler.handle(error);
+                console.error(`\n✗ Device authorization failed: ${cliError.code}`);
+                console.error(`   ${cliError.message}`);
+                if (cliError.hint) {
+                    console.error(`\n💡 Hint: ${cliError.hint}`);
+                }
             }
             process.exit(1);
         }
