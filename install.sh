@@ -56,12 +56,8 @@ if [ "$GIT_AVAILABLE" = true ]; then
   # Install dependencies
   echo "📦 Installing dependencies..."
   npm install
-  
-  # Build
-  echo "🔨 Building CLI..."
-  npm run build
-  
-  # Link globally
+
+  # Link globally (dist/ is pre-compiled in the releases repository)
   echo "🔗 Linking CLI globally..."
   npm link
   
