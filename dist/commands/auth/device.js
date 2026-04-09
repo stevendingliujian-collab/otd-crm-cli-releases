@@ -146,18 +146,25 @@ function displayAuthorizationInstructions(data) {
     console.log(`User Code: ${userCode}`);
     console.log(`Expires in: ${Math.floor(data.expires_in / 60)} minutes\n`);
     // Auto-open browser (cross-platform)
+    // Use spawn with direct args to avoid shell quoting/% expansion issues
     try {
         const platform = process.platform;
+        let cmd;
+        let args;
         if (platform === 'darwin') {
-            (0, child_process_1.execSync)(`open "${authUrl}"`);
+            cmd = 'open';
+            args = [authUrl];
         }
         else if (platform === 'win32') {
-            (0, child_process_1.execSync)(`start "" "${authUrl}"`);
+            // rundll32 passes URL directly without shell interpretation
+            cmd = 'rundll32';
+            args = ['url.dll,FileProtocolHandler', authUrl];
         }
         else {
-            // Linux
-            (0, child_process_1.execSync)(`xdg-open "${authUrl}"`);
+            cmd = 'xdg-open';
+            args = [authUrl];
         }
+        (0, child_process_1.spawn)(cmd, args, { detached: true, stdio: 'ignore' }).unref();
     }
     catch (error) {
         // If auto-open fails, user can still copy the URL
