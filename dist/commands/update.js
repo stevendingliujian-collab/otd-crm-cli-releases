@@ -113,8 +113,8 @@ async function handleUpdate(options) {
     catch (error) {
         console.error('❌ Update failed:', error instanceof Error ? error.message : error);
         console.error('\n💡 You can manually update by running:');
-        console.error('   cd ~/.openclaw/workspace-cto/crm-cli');
-        console.error('   git pull && npm install && npm run build && npm link\n');
+        console.error('   cd ~/.crm-cli');
+        console.error('   git pull && npm install && npm link\n');
         process.exit(1);
     }
 }
@@ -131,7 +131,7 @@ function getCurrentVersion() {
  */
 async function getLatestRelease() {
     try {
-        const response = await axios_1.default.get('https://api.github.com/repos/stevendingliujian-collab/otd-crm-cli-releases/tags?per_page=1', {
+        const response = await axios_1.default.get('https://api.github.com/repos/stevendingliujian-collab/otd-crm-cli-releases/releases?per_page=1', {
             timeout: 5000,
             headers: {
                 'User-Agent': 'crm-cli-update',
@@ -139,15 +139,15 @@ async function getLatestRelease() {
             },
         });
         if (response.data && response.data.length > 0) {
-            const latestTag = response.data[0].name;
+            const release = response.data[0];
             return {
-                version: latestTag.replace(/^v/, ''),
-                publishedAt: response.data[0].commit?.committer?.date || new Date().toISOString(),
-                url: `https://github.com/stevendingliujian-collab/otd-crm-cli-releases/tree/${latestTag}`,
-                tagName: latestTag,
+                version: release.tag_name.replace(/^v/, ''),
+                publishedAt: release.published_at || new Date().toISOString(),
+                url: release.html_url,
+                tagName: release.tag_name,
             };
         }
-        throw new Error('No tags found');
+        throw new Error('No releases found');
     }
     catch (error) {
         throw new Error('无法连接到 GitHub。\n' +
@@ -155,8 +155,8 @@ async function getLatestRelease() {
             '  1. 网络连接问题\n' +
             '  2. GitHub API 限流\n\n' +
             '请手动更新：\n' +
-            '  cd ~/.openclaw/workspace-cto/crm-cli\n' +
-            '  git pull && npm install && npm run build && npm link');
+            '  cd ~/.crm-cli\n' +
+            '  git pull && npm install && npm link');
     }
 }
 /**
@@ -207,17 +207,7 @@ async function performUpdate() {
     catch (error) {
         throw new Error('Failed to install dependencies.');
     }
-    console.log('\n3. Building CLI...');
-    try {
-        (0, child_process_1.execSync)('npm run build', {
-            cwd: cliDir,
-            stdio: 'inherit'
-        });
-    }
-    catch (error) {
-        throw new Error('Failed to build CLI.');
-    }
-    console.log('\n4. Linking CLI globally...');
+    console.log('\n3. Linking CLI globally...');
     try {
         (0, child_process_1.execSync)('npm link', {
             cwd: cliDir,
@@ -227,7 +217,7 @@ async function performUpdate() {
     catch (error) {
         throw new Error('Failed to link CLI globally.');
     }
-    console.log('\n5. Verifying installation...');
+    console.log('\n4. Verifying installation...');
     try {
         const version = (0, child_process_1.execSync)('crm --version', {
             cwd: cliDir,
