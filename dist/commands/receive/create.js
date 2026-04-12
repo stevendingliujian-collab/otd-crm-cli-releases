@@ -24,24 +24,26 @@ function createCommand(receive) {
         .description('Create a new receive (payment) record')
         .requiredOption('--amount <number>', 'Receive amount', parseFloat)
         .requiredOption('--date <date>', 'Receive date (YYYY-MM-DD)')
+        .requiredOption('--receivable-id <id>', 'Receivable item ID (合同应收款项ID)')
         .option('--customer-name <name>', 'Customer name')
         .option('--payer <name>', 'Payer name')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Create a basic receive record
-  $ crm receive create --amount 50000 --date 2026-04-10
+  # Create a receive record linked to a contract receivable item
+  $ crm receive create --amount 50000 --date 2026-04-10 --receivable-id <receivable-id>
 
   # Create with customer, payer and remark
-  $ crm receive create --amount 80000 --date 2026-04-15 --customer-name "北京科技" --payer "张三" --remark "银行转账，流水号12345"
+  $ crm receive create --amount 80000 --date 2026-04-15 --receivable-id <receivable-id> --customer-name "北京科技" --payer "张三" --remark "银行转账，流水号12345"
 
   # Output as JSON
-  $ crm receive create --amount 50000 --date 2026-04-10 --json
+  $ crm receive create --amount 50000 --date 2026-04-10 --receivable-id <receivable-id> --json
 
 Notes:
   - --date format: YYYY-MM-DD
-  - Creates a standalone receive record; link to contract receivable items via the web interface
+  - --receivable-id: the 应收款项 ID from the contract (crm contract get <id> to find it)
+  - The contract is automatically resolved from the receivable item
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -49,6 +51,12 @@ Notes:
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
+            // Fetch the receivable item to get its contractId
+            const receivable = await client.post(`/api/crm/Receive/get?id=${options.receivableId}`, {}, { traceId });
+            const contractId = receivable?.contractId;
+            if (!contractId) {
+                throw new Error(`Could not resolve contractId from receivable ${options.receivableId}`);
+            }
             const body = {
                 customName: options.customerName || '',
                 actualPayAmount: options.amount,
@@ -56,6 +64,18 @@ Notes:
                 actualPayer: options.payer || '',
                 remark: options.remark || '',
                 fileIds: [],
+                contracts: [
+                    {
+                        id: contractId,
+                        receives: [
+                            {
+                                id: options.receivableId,
+                                actualPayAmount: options.amount,
+                                remark: options.remark || '',
+                            },
+                        ],
+                    },
+                ],
             };
             const response = await client.post('/api/crm/FinanceReceive/create', body, { traceId });
             const parseResult = ReceiveDetailSchema.safeParse(response);

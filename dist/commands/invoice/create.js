@@ -24,6 +24,7 @@ function createCommand(invoice) {
         .description('Create a new invoice record')
         .requiredOption('--amount <number>', 'Invoice amount', parseFloat)
         .requiredOption('--date <date>', 'Invoice date (YYYY-MM-DD)')
+        .requiredOption('--receivable-id <id>', 'Receivable item ID (合同应收款项ID)')
         .option('--customer-name <name>', 'Customer name')
         .option('--invoice-number <string>', 'Invoice number (code)')
         .option('--invoicer <name>', 'Invoicer name')
@@ -31,21 +32,19 @@ function createCommand(invoice) {
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Create a basic invoice record
-  $ crm invoice create --amount 100000 --date 2026-04-10
+  # Create an invoice linked to a contract receivable item
+  $ crm invoice create --amount 100000 --date 2026-04-10 --receivable-id <receivable-id>
 
   # Create with customer name, invoice number and invoicer
-  $ crm invoice create --amount 100000 --date 2026-04-15 --customer-name "北京科技" --invoice-number INV-2026-001 --invoicer "财务部"
-
-  # Create with remark
-  $ crm invoice create --amount 50000 --date 2026-04-10 --remark "增值税专用发票"
+  $ crm invoice create --amount 100000 --date 2026-04-15 --receivable-id <receivable-id> --customer-name "北京科技" --invoice-number INV-2026-001 --invoicer "财务部"
 
   # Output as JSON
-  $ crm invoice create --amount 100000 --date 2026-04-10 --json
+  $ crm invoice create --amount 100000 --date 2026-04-10 --receivable-id <receivable-id> --json
 
 Notes:
   - --date format: YYYY-MM-DD
-  - Creates a standalone invoice record; link to contract receivable items via the web interface
+  - --receivable-id: the 应收款项 ID from the contract (crm contract get <id> to find it)
+  - The contract is automatically resolved from the receivable item
   - --invoice-number can be filled in later with 'crm invoice update <id> --invoice-number'
 `)
         .action(async (options, command) => {
@@ -54,6 +53,12 @@ Notes:
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
+            // Fetch the receivable item to get its contractId
+            const receivable = await client.post(`/api/crm/Receive/get?id=${options.receivableId}`, {}, { traceId });
+            const contractId = receivable?.contractId;
+            if (!contractId) {
+                throw new Error(`Could not resolve contractId from receivable ${options.receivableId}`);
+            }
             const body = {
                 code: options.invoiceNumber || '',
                 customName: options.customerName || '',
@@ -62,6 +67,18 @@ Notes:
                 invoicer: options.invoicer || '',
                 remark: options.remark || '',
                 fileIds: [],
+                contracts: [
+                    {
+                        id: contractId,
+                        receives: [
+                            {
+                                id: options.receivableId,
+                                invoiceAmount: options.amount,
+                                remark: options.remark || '',
+                            },
+                        ],
+                    },
+                ],
             };
             const response = await client.post('/api/crm/FinanceInvoice/create', body, { traceId });
             const parseResult = InvoiceDetailSchema.safeParse(response);
