@@ -83,7 +83,10 @@ Notes:
                 Filter: filter,
             };
             const response = await client.post('/api/crm/FinanceInvoice/getList', params, { traceId });
-            const validated = SearchInvoicesResponseSchema.parse(response);
+            const parseResult = SearchInvoicesResponseSchema.safeParse(response);
+            const validated = parseResult.success
+                ? parseResult.data
+                : { totalCount: Array.isArray(response?.items) ? response.items.length : 0, items: Array.isArray(response?.items) ? response.items : [] };
             if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson(validated));
             }

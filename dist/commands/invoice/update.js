@@ -64,7 +64,13 @@ Notes:
             }
             const client = (0, http_client_1.createClient)(profile);
             const current = await client.get(`/api/crm/FinanceInvoice/getFinanceInvoiceById?id=${id}`, { traceId });
-            const currentData = InvoiceDetailSchema.parse(current);
+            const currentParseResult = InvoiceDetailSchema.safeParse(current);
+            const currentData = currentParseResult.success
+                ? currentParseResult.data
+                : (current && typeof current === 'object' ? current : null);
+            if (!currentData || !currentData.id) {
+                throw new Error(`Invoice record not found or unreadable (id: ${id})`);
+            }
             const body = {
                 id: currentData.id,
                 customId: currentData.customId,

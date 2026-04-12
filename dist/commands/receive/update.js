@@ -62,7 +62,13 @@ Notes:
             }
             const client = (0, http_client_1.createClient)(profile);
             const current = await client.get(`/api/crm/FinanceReceive/getFinanceReceiveById?id=${id}`, { traceId });
-            const currentData = ReceiveDetailSchema.parse(current);
+            const currentParseResult = ReceiveDetailSchema.safeParse(current);
+            const currentData = currentParseResult.success
+                ? currentParseResult.data
+                : (current && typeof current === 'object' ? current : null);
+            if (!currentData || !currentData.id) {
+                throw new Error(`Receive record not found or unreadable (id: ${id})`);
+            }
             const body = {
                 id: currentData.id,
                 customId: currentData.customId,
