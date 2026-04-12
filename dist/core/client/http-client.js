@@ -55,6 +55,8 @@ class CRMClient {
             const profileConfig = await config_manager_1.configManager.getProfileConfig(this.profile);
             config.baseURL = profileConfig.api_url;
             config.timeout = profileConfig.timeout;
+            // Match frontend: Accept text/plain so ABP returns serialized JSON body
+            config.headers['Accept'] = 'text/plain';
             // Inject auth token
             try {
                 const token = await auth_manager_1.authManager.getValidToken(this.profile);
