@@ -22,27 +22,26 @@ function createCommand(receive) {
     receive
         .command('create')
         .description('Create a new receive (payment) record')
-        .requiredOption('--contract <contractId>', 'Contract ID to associate')
         .requiredOption('--amount <number>', 'Receive amount', parseFloat)
         .requiredOption('--date <date>', 'Receive date (YYYY-MM-DD)')
+        .option('--customer-name <name>', 'Customer name')
         .option('--payer <name>', 'Payer name')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
   # Create a basic receive record
-  $ crm receive create --contract 3a1973c6-0a85-b26f-1bbd-d236ff3e0250 --amount 50000 --date 2026-04-10
+  $ crm receive create --amount 50000 --date 2026-04-10
 
-  # Create with payer and remark
-  $ crm receive create --contract <contractId> --amount 80000 --date 2026-04-15 --payer "张三" --remark "银行转账，流水号12345"
+  # Create with customer, payer and remark
+  $ crm receive create --amount 80000 --date 2026-04-15 --customer-name "北京科技" --payer "张三" --remark "银行转账，流水号12345"
 
   # Output as JSON
-  $ crm receive create --contract <contractId> --amount 50000 --date 2026-04-10 --json
+  $ crm receive create --amount 50000 --date 2026-04-10 --json
 
 Notes:
-  - --contract is the contract ID (use 'crm contract search' to find it)
   - --date format: YYYY-MM-DD
-  - Creating a receive record automatically updates contract receivable status
+  - Creates a standalone receive record; link to contract receivable items via the web interface
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -51,16 +50,12 @@ Notes:
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
             const body = {
+                customName: options.customerName || '',
                 actualPayAmount: options.amount,
                 actualPayDate: new Date(options.date).toISOString(),
                 actualPayer: options.payer || '',
                 remark: options.remark || '',
-                contracts: [
-                    {
-                        id: options.contract,
-                        receives: [],
-                    },
-                ],
+                fileIds: [],
             };
             const response = await client.post('/api/crm/FinanceReceive/create', body, { traceId });
             const record = ReceiveDetailSchema.parse(response);
@@ -75,7 +70,6 @@ Notes:
                     api_url: client['axiosInstance']?.defaults?.baseURL || '',
                 },
                 changes: {
-                    contract: options.contract,
                     amount: options.amount,
                     date: options.date,
                 },

@@ -17,7 +17,33 @@ class CRMClient {
     profile;
     constructor(profile = 'default') {
         this.profile = profile;
-        this.axiosInstance = axios_1.default.create();
+        this.axiosInstance = axios_1.default.create({
+            transformResponse: [
+                (data) => {
+                    // ABP returns text/plain content-type for some endpoints; defensively
+                    // parse JSON regardless. If the result is still a string (double-encoded),
+                    // parse again.
+                    if (typeof data === 'string' && data.length > 0) {
+                        try {
+                            const parsed = JSON.parse(data);
+                            if (typeof parsed === 'string') {
+                                try {
+                                    return JSON.parse(parsed);
+                                }
+                                catch {
+                                    return parsed;
+                                }
+                            }
+                            return parsed;
+                        }
+                        catch {
+                            return data;
+                        }
+                    }
+                    return data;
+                },
+            ],
+        });
         this.setupInterceptors();
     }
     setupInterceptors() {
@@ -39,14 +65,6 @@ class CRMClient {
             const tenantId = profileConfig.tenant_id;
             if (tenantId) {
                 config.headers['__tenant'] = tenantId;
-            }
-            // DEBUG: Log request details
-            if (process.env.DEBUG || config.url?.includes('update')) {
-                console.error(`[HTTP] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
-                console.error(`[HTTP] Headers:`, JSON.stringify({
-                    Authorization: config.headers.Authorization ? 'Bearer ***' : 'none',
-                    '__tenant': config.headers['__tenant'] || 'none',
-                }));
             }
             return config;
         }, (error) => Promise.reject(error));

@@ -22,9 +22,9 @@ function createCommand(invoice) {
     invoice
         .command('create')
         .description('Create a new invoice record')
-        .requiredOption('--contract <contractId>', 'Contract ID to associate')
         .requiredOption('--amount <number>', 'Invoice amount', parseFloat)
         .requiredOption('--date <date>', 'Invoice date (YYYY-MM-DD)')
+        .option('--customer-name <name>', 'Customer name')
         .option('--invoice-number <string>', 'Invoice number (code)')
         .option('--invoicer <name>', 'Invoicer name')
         .option('--remark <text>', 'Remark')
@@ -32,21 +32,20 @@ function createCommand(invoice) {
         .addHelpText('after', `
 Examples:
   # Create a basic invoice record
-  $ crm invoice create --contract 3a1973c6-0a85-b26f-1bbd-d236ff3e0250 --amount 100000 --date 2026-04-10
+  $ crm invoice create --amount 100000 --date 2026-04-10
 
-  # Create with invoice number and invoicer
-  $ crm invoice create --contract <contractId> --amount 100000 --date 2026-04-15 --invoice-number INV-2026-001 --invoicer "财务部"
+  # Create with customer name, invoice number and invoicer
+  $ crm invoice create --amount 100000 --date 2026-04-15 --customer-name "北京科技" --invoice-number INV-2026-001 --invoicer "财务部"
 
   # Create with remark
-  $ crm invoice create --contract <contractId> --amount 50000 --date 2026-04-10 --remark "增值税专用发票"
+  $ crm invoice create --amount 50000 --date 2026-04-10 --remark "增值税专用发票"
 
   # Output as JSON
-  $ crm invoice create --contract <contractId> --amount 100000 --date 2026-04-10 --json
+  $ crm invoice create --amount 100000 --date 2026-04-10 --json
 
 Notes:
-  - --contract is the contract ID (use 'crm contract search' to find it)
   - --date format: YYYY-MM-DD
-  - Creating an invoice record automatically updates contract invoiced status
+  - Creates a standalone invoice record; link to contract receivable items via the web interface
   - --invoice-number can be filled in later with 'crm invoice update <id> --invoice-number'
 `)
         .action(async (options, command) => {
@@ -57,16 +56,12 @@ Notes:
             const client = (0, http_client_1.createClient)(profile);
             const body = {
                 code: options.invoiceNumber || '',
+                customName: options.customerName || '',
                 invoiceAmount: options.amount,
                 invoiceDate: new Date(options.date).toISOString(),
                 invoicer: options.invoicer || '',
                 remark: options.remark || '',
-                contracts: [
-                    {
-                        id: options.contract,
-                        receives: [],
-                    },
-                ],
+                fileIds: [],
             };
             const response = await client.post('/api/crm/FinanceInvoice/create', body, { traceId });
             const record = InvoiceDetailSchema.parse(response);
@@ -81,7 +76,6 @@ Notes:
                     api_url: client['axiosInstance']?.defaults?.baseURL || '',
                 },
                 changes: {
-                    contract: options.contract,
                     amount: options.amount,
                     date: options.date,
                 },
