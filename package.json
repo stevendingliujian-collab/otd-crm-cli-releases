@@ -1,6 +1,6 @@
 {
   "name": "@otd/crm-cli",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "OTD CRM Command Line Interface",
   "main": "dist/index.js",
   "bin": {

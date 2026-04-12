@@ -75,7 +75,8 @@ Notes:
             body.actualPayer = options.payer ?? currentData.actualPayer ?? '';
             body.remark = options.remark ?? currentData.remark ?? '';
             const response = await client.post(`/api/crm/FinanceReceive/update?id=${id}`, body, { traceId });
-            const updated = ReceiveDetailSchema.parse(response);
+            const parseResult = ReceiveDetailSchema.safeParse(response);
+            const updated = parseResult.success ? parseResult.data : { id, ...body };
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
                 operator: 'current_user',

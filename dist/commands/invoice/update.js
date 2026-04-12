@@ -78,7 +78,8 @@ Notes:
             body.invoicer = options.invoicer ?? currentData.invoicer ?? '';
             body.remark = options.remark ?? currentData.remark ?? '';
             const response = await client.post(`/api/crm/FinanceInvoice/update?id=${id}`, body, { traceId });
-            const updated = InvoiceDetailSchema.parse(response);
+            const parseResult = InvoiceDetailSchema.safeParse(response);
+            const updated = parseResult.success ? parseResult.data : { id, ...body };
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
                 operator: 'current_user',

@@ -23,7 +23,9 @@ class CRMClient {
                     // ABP returns text/plain content-type for some endpoints; defensively
                     // parse JSON regardless. If the result is still a string (double-encoded),
                     // parse again.
-                    if (typeof data === 'string' && data.length > 0) {
+                    if (typeof data === 'string') {
+                        if (data.length === 0)
+                            return null;
                         try {
                             const parsed = JSON.parse(data);
                             if (typeof parsed === 'string') {

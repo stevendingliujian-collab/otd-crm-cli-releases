@@ -64,7 +64,8 @@ Notes:
                 fileIds: [],
             };
             const response = await client.post('/api/crm/FinanceInvoice/create', body, { traceId });
-            const record = InvoiceDetailSchema.parse(response);
+            const parseResult = InvoiceDetailSchema.safeParse(response);
+            const record = parseResult.success ? parseResult.data : (response && typeof response === 'object' ? response : {});
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
                 operator: 'current_user',
