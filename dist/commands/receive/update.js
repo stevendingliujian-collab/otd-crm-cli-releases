@@ -29,6 +29,29 @@ function updateCommand(receive) {
         .option('--status <status>', 'Receive status')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
+        .addHelpText('after', `
+Examples:
+  # Update receive amount
+  $ crm receive update <id> --amount 50000
+
+  # Update receive date and status
+  $ crm receive update <id> --date 2026-04-01 --status confirmed
+
+  # Update remark
+  $ crm receive update <id> --remark "已到账，银行流水号 12345678"
+
+  # Update multiple fields at once
+  $ crm receive update <id> --amount 80000 --date 2026-04-15 --status confirmed
+
+  # Output as JSON
+  $ crm receive update <id> --amount 50000 --json
+
+Notes:
+  - At least one option must be provided
+  - --date format: YYYY-MM-DD
+  - --status common values: pending, confirmed, cancelled
+  - Use 'crm receive get <id>' to check current values before updating
+`)
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

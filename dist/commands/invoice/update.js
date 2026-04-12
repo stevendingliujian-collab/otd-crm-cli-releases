@@ -31,6 +31,32 @@ function updateCommand(invoice) {
         .option('--invoice-number <string>', 'Invoice number')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
+        .addHelpText('after', `
+Examples:
+  # Update invoice status
+  $ crm invoice update <id> --status issued
+
+  # Fill in invoice number after issuing
+  $ crm invoice update <id> --invoice-number INV-2026-001
+
+  # Update invoice date and amount
+  $ crm invoice update <id> --date 2026-04-01 --amount 100000
+
+  # Update multiple fields at once
+  $ crm invoice update <id> --status issued --invoice-number INV-2026-001 --date 2026-04-15
+
+  # Add remark
+  $ crm invoice update <id> --remark "增值税专用发票，已邮寄"
+
+  # Output as JSON
+  $ crm invoice update <id> --status issued --json
+
+Notes:
+  - At least one option must be provided
+  - --date format: YYYY-MM-DD
+  - --status common values: pending, issued, cancelled
+  - Use 'crm invoice get <id>' to check current values before updating
+`)
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
