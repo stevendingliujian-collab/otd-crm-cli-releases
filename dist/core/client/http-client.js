@@ -66,8 +66,9 @@ class CRMClient {
                 // Not authenticated, continue without token
             }
             // Inject tenant ID (required for multi-tenant ABP apps)
+            // Only set if not already explicitly provided in the request (e.g. login step 2)
             const tenantId = profileConfig.tenant_id;
-            if (tenantId) {
+            if (tenantId && !config.headers['__tenant']) {
                 config.headers['__tenant'] = tenantId;
             }
             return config;
