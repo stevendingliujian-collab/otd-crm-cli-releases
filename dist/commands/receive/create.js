@@ -51,14 +51,18 @@ Notes:
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
-            // Fetch the receivable item to get its contractId
+            // Fetch receivable item → contractId, then contract → customId
             const receivable = await client.post(`/api/crm/Receive/get?id=${options.receivableId}`, {}, { traceId });
             const contractId = receivable?.contractId;
             if (!contractId) {
                 throw new Error(`Could not resolve contractId from receivable ${options.receivableId}`);
             }
+            const contract = await client.get(`/api/crm/Contract/getContractById?id=${contractId}`, { traceId });
+            const customId = contract?.customId;
+            const customName = options.customerName || contract?.customName || '';
             const body = {
-                customName: options.customerName || '',
+                customId: customId || undefined,
+                customName,
                 actualPayAmount: options.amount,
                 actualPayDate: new Date(options.date).toISOString(),
                 actualPayer: options.payer || '',
