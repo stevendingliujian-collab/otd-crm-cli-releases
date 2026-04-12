@@ -1,5 +1,5 @@
 /**
- * Search receives command
+ * Search receive records command
  */
 import { Command } from 'commander';
 export declare function searchCommand(receive: Command): void;

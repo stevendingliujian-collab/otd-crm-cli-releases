@@ -13,11 +13,12 @@ const audit_logger_1 = require("../../core/audit/audit-logger");
 const error_codes_1 = require("../../constants/error-codes");
 const ReceiveDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    contractId: zod_1.z.string().optional().nullable(),
-    contractName: zod_1.z.string().optional().nullable(),
-    amount: zod_1.z.number().optional().nullable(),
-    receiveDate: zod_1.z.string().optional().nullable(),
-    status: zod_1.z.string().optional().nullable(),
+    code: zod_1.z.string().optional().nullable(),
+    customId: zod_1.z.string().optional().nullable(),
+    customName: zod_1.z.string().optional().nullable(),
+    actualPayDate: zod_1.z.string().optional().nullable(),
+    actualPayAmount: zod_1.z.number().optional().nullable(),
+    actualPayer: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
 function updateCommand(receive) {
@@ -26,7 +27,7 @@ function updateCommand(receive) {
         .description('Update an existing receive record')
         .option('--amount <number>', 'Receive amount', parseFloat)
         .option('--date <date>', 'Receive date (YYYY-MM-DD)')
-        .option('--status <status>', 'Receive status')
+        .option('--payer <name>', 'Payer name')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
@@ -34,14 +35,14 @@ Examples:
   # Update receive amount
   $ crm receive update <id> --amount 50000
 
-  # Update receive date and status
-  $ crm receive update <id> --date 2026-04-01 --status confirmed
+  # Update receive date and payer
+  $ crm receive update <id> --date 2026-04-01 --payer "张三"
 
   # Update remark
   $ crm receive update <id> --remark "已到账，银行流水号 12345678"
 
   # Update multiple fields at once
-  $ crm receive update <id> --amount 80000 --date 2026-04-15 --status confirmed
+  $ crm receive update <id> --amount 80000 --date 2026-04-15 --payer "李四"
 
   # Output as JSON
   $ crm receive update <id> --amount 50000 --json
@@ -49,7 +50,6 @@ Examples:
 Notes:
   - At least one option must be provided
   - --date format: YYYY-MM-DD
-  - --status common values: pending, confirmed, cancelled
   - Use 'crm receive get <id>' to check current values before updating
 `)
         .action(async (id, options, command) => {
@@ -57,21 +57,24 @@ Notes:
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            if (options.amount === undefined && !options.date && !options.status && !options.remark) {
-                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --status, --remark', { available_options: ['--amount', '--date', '--status', '--remark'] });
+            if (options.amount === undefined && !options.date && !options.payer && !options.remark) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --payer, --remark', { available_options: ['--amount', '--date', '--payer', '--remark'] });
             }
             const client = (0, http_client_1.createClient)(profile);
-            const current = await client.get(`/api/crm/receive/getReceiveById?id=${id}`, { traceId });
+            const current = await client.get(`/api/crm/FinanceReceive/getFinanceReceiveById?id=${id}`, { traceId });
             const currentData = ReceiveDetailSchema.parse(current);
             const body = {
                 id: currentData.id,
-                contractId: currentData.contractId,
+                customId: currentData.customId,
+                customName: currentData.customName,
             };
-            body.amount = options.amount !== undefined ? options.amount : currentData.amount;
-            body.receiveDate = options.date ?? currentData.receiveDate;
-            body.status = options.status ?? currentData.status;
+            body.actualPayAmount = options.amount !== undefined ? options.amount : currentData.actualPayAmount;
+            body.actualPayDate = options.date
+                ? new Date(options.date).toISOString()
+                : currentData.actualPayDate;
+            body.actualPayer = options.payer ?? currentData.actualPayer ?? '';
             body.remark = options.remark ?? currentData.remark ?? '';
-            const response = await client.post(`/api/crm/receive/update?id=${id}`, body, { traceId });
+            const response = await client.post(`/api/crm/FinanceReceive/update?id=${id}`, body, { traceId });
             const updated = ReceiveDetailSchema.parse(response);
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
@@ -84,7 +87,7 @@ Notes:
                     api_url: client['axiosInstance']?.defaults?.baseURL || '',
                 },
                 changes: {
-                    fields_updated: ['amount', 'date', 'status', 'remark'].filter(k => options[k === 'date' ? 'date' : k] !== undefined),
+                    fields_updated: ['amount', 'date', 'payer', 'remark'].filter(k => options[k] !== undefined),
                 },
             });
             if (options.json) {
@@ -93,14 +96,16 @@ Notes:
             else {
                 formatter_1.formatter.success('✅ Receive record updated successfully');
                 formatter_1.formatter.info(`ID: ${updated.id}`);
-                if (updated.contractName)
-                    formatter_1.formatter.info(`Contract: ${updated.contractName}`);
-                if (updated.amount !== undefined && updated.amount !== null)
-                    formatter_1.formatter.info(`Amount: ¥${updated.amount}`);
-                if (updated.receiveDate)
-                    formatter_1.formatter.info(`Date: ${updated.receiveDate}`);
-                if (updated.status)
-                    formatter_1.formatter.info(`Status: ${updated.status}`);
+                if (updated.code)
+                    formatter_1.formatter.info(`Code: ${updated.code}`);
+                if (updated.customName)
+                    formatter_1.formatter.info(`Customer: ${updated.customName}`);
+                if (updated.actualPayAmount !== undefined && updated.actualPayAmount !== null)
+                    formatter_1.formatter.info(`Amount: ¥${updated.actualPayAmount}`);
+                if (updated.actualPayDate)
+                    formatter_1.formatter.info(`Pay Date: ${updated.actualPayDate}`);
+                if (updated.actualPayer)
+                    formatter_1.formatter.info(`Payer: ${updated.actualPayer}`);
                 if (updated.remark)
                     formatter_1.formatter.info(`Remark: ${updated.remark}`);
             }

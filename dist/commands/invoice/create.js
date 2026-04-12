@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Create receive record command
+ * Create invoice record command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCommand = createCommand;
@@ -9,40 +9,45 @@ const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
-const ReceiveDetailSchema = zod_1.z.object({
+const InvoiceDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
     code: zod_1.z.string().optional().nullable(),
     customName: zod_1.z.string().optional().nullable(),
-    actualPayDate: zod_1.z.string().optional().nullable(),
-    actualPayAmount: zod_1.z.number().optional().nullable(),
-    actualPayer: zod_1.z.string().optional().nullable(),
+    invoiceDate: zod_1.z.string().optional().nullable(),
+    invoiceAmount: zod_1.z.number().optional().nullable(),
+    invoicer: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
-function createCommand(receive) {
-    receive
+function createCommand(invoice) {
+    invoice
         .command('create')
-        .description('Create a new receive (payment) record')
+        .description('Create a new invoice record')
         .requiredOption('--contract <contractId>', 'Contract ID to associate')
-        .requiredOption('--amount <number>', 'Receive amount', parseFloat)
-        .requiredOption('--date <date>', 'Receive date (YYYY-MM-DD)')
-        .option('--payer <name>', 'Payer name')
+        .requiredOption('--amount <number>', 'Invoice amount', parseFloat)
+        .requiredOption('--date <date>', 'Invoice date (YYYY-MM-DD)')
+        .option('--invoice-number <string>', 'Invoice number (code)')
+        .option('--invoicer <name>', 'Invoicer name')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Create a basic receive record
-  $ crm receive create --contract 3a1973c6-0a85-b26f-1bbd-d236ff3e0250 --amount 50000 --date 2026-04-10
+  # Create a basic invoice record
+  $ crm invoice create --contract 3a1973c6-0a85-b26f-1bbd-d236ff3e0250 --amount 100000 --date 2026-04-10
 
-  # Create with payer and remark
-  $ crm receive create --contract <contractId> --amount 80000 --date 2026-04-15 --payer "张三" --remark "银行转账，流水号12345"
+  # Create with invoice number and invoicer
+  $ crm invoice create --contract <contractId> --amount 100000 --date 2026-04-15 --invoice-number INV-2026-001 --invoicer "财务部"
+
+  # Create with remark
+  $ crm invoice create --contract <contractId> --amount 50000 --date 2026-04-10 --remark "增值税专用发票"
 
   # Output as JSON
-  $ crm receive create --contract <contractId> --amount 50000 --date 2026-04-10 --json
+  $ crm invoice create --contract <contractId> --amount 100000 --date 2026-04-10 --json
 
 Notes:
   - --contract is the contract ID (use 'crm contract search' to find it)
   - --date format: YYYY-MM-DD
-  - Creating a receive record automatically updates contract receivable status
+  - Creating an invoice record automatically updates contract invoiced status
+  - --invoice-number can be filled in later with 'crm invoice update <id> --invoice-number'
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -51,9 +56,10 @@ Notes:
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
             const body = {
-                actualPayAmount: options.amount,
-                actualPayDate: new Date(options.date).toISOString(),
-                actualPayer: options.payer || '',
+                code: options.invoiceNumber || '',
+                invoiceAmount: options.amount,
+                invoiceDate: new Date(options.date).toISOString(),
+                invoicer: options.invoicer || '',
                 remark: options.remark || '',
                 contracts: [
                     {
@@ -62,13 +68,13 @@ Notes:
                     },
                 ],
             };
-            const response = await client.post('/api/crm/FinanceReceive/create', body, { traceId });
-            const record = ReceiveDetailSchema.parse(response);
+            const response = await client.post('/api/crm/FinanceInvoice/create', body, { traceId });
+            const record = InvoiceDetailSchema.parse(response);
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
                 operator: 'current_user',
-                action: 'receive.create',
-                resource_type: 'receive',
+                action: 'invoice.create',
+                resource_type: 'invoice',
                 resource_id: record.id,
                 meta: {
                     profile,
@@ -84,18 +90,18 @@ Notes:
                 console.log(formatter_1.formatter.formatJson({ success: true, data: record, trace_id: traceId }));
             }
             else {
-                formatter_1.formatter.success('✅ Receive record created successfully');
+                formatter_1.formatter.success('✅ Invoice record created successfully');
                 formatter_1.formatter.info(`ID: ${record.id}`);
                 if (record.code)
-                    formatter_1.formatter.info(`Code: ${record.code}`);
+                    formatter_1.formatter.info(`Invoice No: ${record.code}`);
                 if (record.customName)
                     formatter_1.formatter.info(`Customer: ${record.customName}`);
-                if (record.actualPayAmount !== undefined && record.actualPayAmount !== null)
-                    formatter_1.formatter.info(`Amount: ¥${record.actualPayAmount}`);
-                if (record.actualPayDate)
-                    formatter_1.formatter.info(`Pay Date: ${record.actualPayDate}`);
-                if (record.actualPayer)
-                    formatter_1.formatter.info(`Payer: ${record.actualPayer}`);
+                if (record.invoiceAmount !== undefined && record.invoiceAmount !== null)
+                    formatter_1.formatter.info(`Amount: ¥${record.invoiceAmount}`);
+                if (record.invoiceDate)
+                    formatter_1.formatter.info(`Invoice Date: ${record.invoiceDate}`);
+                if (record.invoicer)
+                    formatter_1.formatter.info(`Invoicer: ${record.invoicer}`);
             }
         }
         catch (error) {

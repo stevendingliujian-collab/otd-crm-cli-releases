@@ -1,5 +1,5 @@
 /**
- * Get receive detail command
+ * Get receive record command
  */
 import { Command } from 'commander';
 export declare function getCommand(receive: Command): void;

@@ -1,5 +1,5 @@
 /**
- * Get invoice detail command
+ * Get invoice record command
  */
 import { Command } from 'commander';
 export declare function getCommand(invoice: Command): void;

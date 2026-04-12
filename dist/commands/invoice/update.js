@@ -13,12 +13,12 @@ const audit_logger_1 = require("../../core/audit/audit-logger");
 const error_codes_1 = require("../../constants/error-codes");
 const InvoiceDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    invoiceNumber: zod_1.z.string().optional().nullable(),
-    contractId: zod_1.z.string().optional().nullable(),
-    contractName: zod_1.z.string().optional().nullable(),
-    amount: zod_1.z.number().optional().nullable(),
+    code: zod_1.z.string().optional().nullable(),
+    customId: zod_1.z.string().optional().nullable(),
+    customName: zod_1.z.string().optional().nullable(),
     invoiceDate: zod_1.z.string().optional().nullable(),
-    status: zod_1.z.string().optional().nullable(),
+    invoiceAmount: zod_1.z.number().optional().nullable(),
+    invoicer: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
 function updateCommand(invoice) {
@@ -27,15 +27,12 @@ function updateCommand(invoice) {
         .description('Update an existing invoice record')
         .option('--amount <number>', 'Invoice amount', parseFloat)
         .option('--date <date>', 'Invoice date (YYYY-MM-DD)')
-        .option('--status <status>', 'Invoice status')
-        .option('--invoice-number <string>', 'Invoice number')
+        .option('--invoice-number <string>', 'Invoice number (code)')
+        .option('--invoicer <name>', 'Invoicer name')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Update invoice status
-  $ crm invoice update <id> --status issued
-
   # Fill in invoice number after issuing
   $ crm invoice update <id> --invoice-number INV-2026-001
 
@@ -43,18 +40,18 @@ Examples:
   $ crm invoice update <id> --date 2026-04-01 --amount 100000
 
   # Update multiple fields at once
-  $ crm invoice update <id> --status issued --invoice-number INV-2026-001 --date 2026-04-15
+  $ crm invoice update <id> --invoice-number INV-2026-001 --date 2026-04-15 --amount 100000
 
   # Add remark
   $ crm invoice update <id> --remark "增值税专用发票，已邮寄"
 
   # Output as JSON
-  $ crm invoice update <id> --status issued --json
+  $ crm invoice update <id> --invoice-number INV-2026-001 --json
 
 Notes:
   - At least one option must be provided
   - --date format: YYYY-MM-DD
-  - --status common values: pending, issued, cancelled
+  - --invoice-number sets the invoice code field
   - Use 'crm invoice get <id>' to check current values before updating
 `)
         .action(async (id, options, command) => {
@@ -62,22 +59,25 @@ Notes:
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            if (options.amount === undefined && !options.date && !options.status && !options.invoiceNumber && !options.remark) {
-                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --status, --invoice-number, --remark', { available_options: ['--amount', '--date', '--status', '--invoice-number', '--remark'] });
+            if (options.amount === undefined && !options.date && !options.invoiceNumber && !options.invoicer && !options.remark) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --invoice-number, --invoicer, --remark', { available_options: ['--amount', '--date', '--invoice-number', '--invoicer', '--remark'] });
             }
             const client = (0, http_client_1.createClient)(profile);
-            const current = await client.get(`/api/crm/invoice/getInvoiceById?id=${id}`, { traceId });
+            const current = await client.get(`/api/crm/FinanceInvoice/getFinanceInvoiceById?id=${id}`, { traceId });
             const currentData = InvoiceDetailSchema.parse(current);
             const body = {
                 id: currentData.id,
-                contractId: currentData.contractId,
+                customId: currentData.customId,
+                customName: currentData.customName,
             };
-            body.amount = options.amount !== undefined ? options.amount : currentData.amount;
-            body.invoiceDate = options.date ?? currentData.invoiceDate;
-            body.status = options.status ?? currentData.status;
-            body.invoiceNumber = options.invoiceNumber ?? currentData.invoiceNumber;
+            body.invoiceAmount = options.amount !== undefined ? options.amount : currentData.invoiceAmount;
+            body.invoiceDate = options.date
+                ? new Date(options.date).toISOString()
+                : currentData.invoiceDate;
+            body.code = options.invoiceNumber ?? currentData.code ?? '';
+            body.invoicer = options.invoicer ?? currentData.invoicer ?? '';
             body.remark = options.remark ?? currentData.remark ?? '';
-            const response = await client.post(`/api/crm/invoice/update?id=${id}`, body, { traceId });
+            const response = await client.post(`/api/crm/FinanceInvoice/update?id=${id}`, body, { traceId });
             const updated = InvoiceDetailSchema.parse(response);
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
@@ -90,7 +90,7 @@ Notes:
                     api_url: client['axiosInstance']?.defaults?.baseURL || '',
                 },
                 changes: {
-                    fields_updated: ['amount', 'date', 'status', 'invoiceNumber', 'remark'].filter(k => options[k] !== undefined),
+                    fields_updated: ['amount', 'date', 'invoiceNumber', 'invoicer', 'remark'].filter(k => options[k] !== undefined),
                 },
             });
             if (options.json) {
@@ -99,16 +99,16 @@ Notes:
             else {
                 formatter_1.formatter.success('✅ Invoice record updated successfully');
                 formatter_1.formatter.info(`ID: ${updated.id}`);
-                if (updated.contractName)
-                    formatter_1.formatter.info(`Contract: ${updated.contractName}`);
-                if (updated.invoiceNumber)
-                    formatter_1.formatter.info(`Invoice Number: ${updated.invoiceNumber}`);
-                if (updated.amount !== undefined && updated.amount !== null)
-                    formatter_1.formatter.info(`Amount: ¥${updated.amount}`);
+                if (updated.code)
+                    formatter_1.formatter.info(`Invoice No: ${updated.code}`);
+                if (updated.customName)
+                    formatter_1.formatter.info(`Customer: ${updated.customName}`);
+                if (updated.invoiceAmount !== undefined && updated.invoiceAmount !== null)
+                    formatter_1.formatter.info(`Amount: ¥${updated.invoiceAmount}`);
                 if (updated.invoiceDate)
-                    formatter_1.formatter.info(`Date: ${updated.invoiceDate}`);
-                if (updated.status)
-                    formatter_1.formatter.info(`Status: ${updated.status}`);
+                    formatter_1.formatter.info(`Invoice Date: ${updated.invoiceDate}`);
+                if (updated.invoicer)
+                    formatter_1.formatter.info(`Invoicer: ${updated.invoicer}`);
                 if (updated.remark)
                     formatter_1.formatter.info(`Remark: ${updated.remark}`);
             }

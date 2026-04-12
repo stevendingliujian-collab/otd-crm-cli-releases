@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Search receives command
+ * Search receive records command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchCommand = searchCommand;
@@ -11,11 +11,12 @@ const audit_logger_1 = require("../../core/audit/audit-logger");
 const zod_1 = require("zod");
 const ReceiveSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    contractId: zod_1.z.string().optional().nullable(),
-    contractName: zod_1.z.string().optional().nullable(),
-    amount: zod_1.z.number().optional().nullable(),
-    receiveDate: zod_1.z.string().optional().nullable(),
-    status: zod_1.z.string().optional().nullable(),
+    code: zod_1.z.string().optional().nullable(),
+    customId: zod_1.z.string().optional().nullable(),
+    customName: zod_1.z.string().optional().nullable(),
+    actualPayDate: zod_1.z.string().optional().nullable(),
+    actualPayAmount: zod_1.z.number().optional().nullable(),
+    actualPayer: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
 const SearchReceivesResponseSchema = zod_1.z.object({
@@ -26,35 +27,36 @@ function searchCommand(receive) {
     receive
         .command('search')
         .description('Search receive (payment) records')
-        .option('--keyword <keyword>', 'Search keyword')
-        .option('--contract <contractId>', 'Filter by contract ID')
-        .option('--customer-id <customerId>', 'Filter by customer ID')
-        .option('--status <status>', 'Filter by status')
-        .option('--from <date>', 'Receive date from (YYYY-MM-DD)')
-        .option('--to <date>', 'Receive date to (YYYY-MM-DD)')
+        .option('--customer <name>', 'Filter by customer name')
+        .option('--customer-id <id>', 'Filter by customer ID')
+        .option('--contract <code>', 'Filter by contract code')
+        .option('--payer <name>', 'Filter by payer name')
+        .option('--from <date>', 'Pay date from (YYYY-MM-DD)')
+        .option('--to <date>', 'Pay date to (YYYY-MM-DD)')
         .option('--page <number>', 'Page number (default: 1)', '1')
         .option('--size <number>', 'Page size (default: 20)', '20')
+        .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
   # Search all payment records for a customer
   $ crm receive search --customer-id 3a1973c6-0a85-b26f-1bbd-d236ff3e0250
-  
-  # Search payments for a contract
-  $ crm receive search --contract abc123-def456
-  
+
+  # Search by customer name
+  $ crm receive search --customer "北京科技"
+
+  # Search payments for a contract code
+  $ crm receive search --contract HT-2026-001
+
   # Search payments in date range
   $ crm receive search --from 2026-01-01 --to 2026-03-31
-  
-  # Search by keyword
-  $ crm receive search --keyword "银行转账"
-  
+
   # Export as JSON
-  $ crm receive search --customer-id xxx --json > payments.json
+  $ crm receive search --customer-id <id> --json > payments.json
 
 Notes:
-  - Use --customer-id for customer 360° view
-  - Date range filters use ISO format (YYYY-MM-DD)
-  - Use --json for machine-readable output
+  - --customer does partial name match
+  - --contract filters by contract code (not ID)
+  - Date range uses ISO format (YYYY-MM-DD)
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -62,50 +64,39 @@ Notes:
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
-            // Build filter object
             const filter = {};
-            if (options.keyword) {
-                filter.LikeString = options.keyword;
-            }
-            if (options.contract) {
-                filter.ContractId = options.contract;
-            }
-            if (options.customerId) {
+            if (options.customer)
+                filter.CustomName = options.customer;
+            if (options.customerId)
                 filter.CustomId = options.customerId;
-            }
-            if (options.status) {
-                filter.Status = options.status;
-            }
-            if (options.from) {
-                filter.ReceiveDateStart = new Date(options.from).toISOString();
-            }
-            if (options.to) {
-                filter.ReceiveDateEnd = new Date(options.to + 'T23:59:59').toISOString();
-            }
+            if (options.contract)
+                filter.ContractCode = options.contract;
+            if (options.payer)
+                filter.Receiver = options.payer;
+            if (options.from)
+                filter.ActualPayDateStart = new Date(options.from).toISOString();
+            if (options.to)
+                filter.ActualPayDateEnd = new Date(options.to + 'T23:59:59').toISOString();
             const params = {
                 maxResultCount: parseInt(options.size),
                 skipCount: (parseInt(options.page) - 1) * parseInt(options.size),
                 Filter: filter,
             };
-            console.error(`[DEBUG] Calling /api/crm/receive/getList with params:`, JSON.stringify(params));
-            const response = await client.post('/api/crm/receive/getList', params, {
-                traceId,
-            });
-            console.error(`[DEBUG] Response received:`, JSON.stringify(response).substring(0, 200));
+            const response = await client.post('/api/crm/FinanceReceive/getList', params, { traceId });
             const validated = SearchReceivesResponseSchema.parse(response);
-            if (globalOpts.json) {
+            if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson(validated));
             }
             else {
                 const output = formatter_1.formatter.format(validated.items, {
                     format: 'table',
-                    fields: ['id', 'contractName', 'amount', 'receiveDate', 'status'],
+                    fields: ['id', 'customName', 'actualPayAmount', 'actualPayDate', 'actualPayer'],
                     headers: {
                         id: 'ID',
-                        contractName: 'Contract',
-                        amount: 'Amount',
-                        receiveDate: 'Receive Date',
-                        status: 'Status',
+                        customName: 'Customer',
+                        actualPayAmount: 'Amount',
+                        actualPayDate: 'Pay Date',
+                        actualPayer: 'Payer',
                     },
                 });
                 console.log(`Found ${validated.totalCount} receive records\n`);
@@ -114,15 +105,14 @@ Notes:
         }
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
-            console.error(`[ERROR] Receive search failed:`);
-            console.error(JSON.stringify({
-                error: {
-                    code: cliError.code,
-                    message: cliError.message,
-                    hint: cliError.hint,
-                    trace_id: traceId,
-                },
-            }, null, 2));
+            if (options.json || (command.optsWithGlobals()).json) {
+                console.error(formatter_1.formatter.formatJson({ success: false, error: { code: cliError.code, message: cliError.message }, trace_id: traceId }));
+            }
+            else {
+                formatter_1.formatter.error(`${cliError.code}: ${cliError.message}`);
+                if (cliError.hint)
+                    formatter_1.formatter.info(`Hint: ${cliError.hint}`);
+            }
             process.exit(1);
         }
     });
