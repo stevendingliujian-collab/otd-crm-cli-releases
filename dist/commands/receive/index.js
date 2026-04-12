@@ -7,6 +7,7 @@ exports.receiveCommands = receiveCommands;
 const search_1 = require("./search");
 const get_1 = require("./get");
 const create_1 = require("./create");
+const update_1 = require("./update");
 function receiveCommands(program) {
     const receive = program
         .command('receive')
@@ -14,5 +15,6 @@ function receiveCommands(program) {
     (0, search_1.searchCommand)(receive);
     (0, get_1.getCommand)(receive);
     (0, create_1.createCommand)(receive);
+    (0, update_1.updateCommand)(receive);
 }
 //# sourceMappingURL=index.js.map
