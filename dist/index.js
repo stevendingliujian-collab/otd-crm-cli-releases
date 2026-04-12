@@ -50,6 +50,7 @@ const followup_1 = require("./commands/followup");
 const task_1 = require("./commands/task");
 const contact_1 = require("./commands/contact");
 const receive_1 = require("./commands/receive");
+const receivable_1 = require("./commands/receivable");
 const invoice_1 = require("./commands/invoice");
 const update_1 = require("./commands/update");
 const update_checker_1 = require("./utils/update-checker");
@@ -137,6 +138,7 @@ program
 (0, task_1.registerTaskCommands)(program);
 (0, contact_1.contactCommands)(program);
 (0, receive_1.receiveCommands)(program);
+(0, receivable_1.receivableCommands)(program);
 (0, invoice_1.invoiceCommands)(program);
 (0, update_1.updateCommand)(program);
 // Parse arguments
