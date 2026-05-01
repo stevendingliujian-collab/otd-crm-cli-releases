@@ -12,7 +12,6 @@ function getCommand(followup) {
     followup
         .command('get <id>')
         .description('Get followup record by ID')
-        .argument('<id>', 'Followup ID (UUID)')
         .option('--json', 'Output as JSON (default)')
         .option('--format <format>', 'Output format: json | text | markdown', 'json')
         .action(async (id, options, command) => {

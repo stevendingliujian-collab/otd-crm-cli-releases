@@ -17,7 +17,7 @@ function searchCommand(followup) {
         .option('--related-id <id>', 'Filter by related object ID')
         .option('--related-type <type>', 'Filter by related type (0-7)', parseInt)
         .option('--customer-id <id>', 'Filter by customer ID (shorthand for --related-id + --related-type 1)')
-        .option('--opportunity-id <id>', 'Filter by opportunity ID (shorthand for --related-id + --related-type 0)')
+        .option('--opportunity-id <id>', 'Filter by opportunity ID (shorthand for --related-id + --related-type 0 / business)')
         .option('--type <type>', 'Filter by followup type (1-4)', parseInt)
         // P2 priority - date filters
         .option('--date-after <date>', 'Followup date >= (YYYY-MM-DD)')
@@ -49,8 +49,9 @@ Examples:
 Notes:
   - --customer-id is shorthand for --related-id <id> --related-type 1
   - --opportunity-id is shorthand for --related-id <id> --related-type 0
-  - Related types: 0=Opportunity, 1=Customer, 2=Contact
-  - Followup types: 1=Phone, 2=Email, 3=Visit, 4=Other
+  - Related types: 0=商机(Business), 1=客户(Customer), 2=联系人(Contact), 3=客户+商机(CustomerBiz查询用),
+                   4=项目(Project), 5=线索(Clue), 6=合同(Contract), 7=应收款(Receivable)
+  - Followup types: 0=其他, 1=电话, 2=微信, 3=拜访
   - Use --json for machine-readable output
 `)
         .action(async (options, command) => {
@@ -71,7 +72,7 @@ Notes:
             }
             else if (options.opportunityId) {
                 filter.relatedId = options.opportunityId;
-                filter.relatedType = 0; // Opportunity
+                filter.relatedType = 0; // 商机 (Business = 0)
             }
             else {
                 if (options.relatedId) {
@@ -85,19 +86,23 @@ Notes:
             if (options.type !== undefined) {
                 filter.type = options.type;
             }
-            // Followup date filters (P2)
+            // Followup date filters
             if (options.dateAfter) {
-                filter.followUpDateStart = new Date(options.dateAfter).toISOString();
+                const d = new Date(options.dateAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.followUpDateStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.dateBefore) {
-                filter.followUpDateEnd = new Date(options.dateBefore + 'T23:59:59').toISOString();
+                filter.followUpDateEnd = options.dateBefore + 'T23:59:59';
             }
             // Creation time filters
             if (options.createdAfter) {
-                filter.creationTimeStart = new Date(options.createdAfter).toISOString();
+                const d = new Date(options.createdAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.creationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.createdBefore) {
-                filter.creationTimeEnd = new Date(options.createdBefore + 'T23:59:59').toISOString();
+                filter.creationTimeEnd = options.createdBefore + 'T23:59:59';
             }
             // Owner filters
             if (options.ownerId) {

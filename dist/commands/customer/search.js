@@ -57,29 +57,33 @@ Notes:
             // Build filter object
             const filter = {};
             if (options.keyword) {
-                filter.LikeString = options.keyword;
+                filter.likeString = options.keyword;
             }
             if (options.createdAfter) {
-                filter.CreationTimeStart = new Date(options.createdAfter).toISOString();
+                const d = new Date(options.createdAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.creationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.createdBefore) {
-                filter.CreationTimeEnd = new Date(options.createdBefore + 'T23:59:59').toISOString();
+                filter.creationTimeEnd = options.createdBefore + 'T23:59:59';
             }
             if (options.updatedAfter) {
-                filter.LastModificationTimeStart = new Date(options.updatedAfter).toISOString();
+                const d = new Date(options.updatedAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.lastModificationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.updatedBefore) {
-                filter.LastModificationTimeEnd = new Date(options.updatedBefore + 'T23:59:59').toISOString();
+                filter.lastModificationTimeEnd = options.updatedBefore + 'T23:59:59';
             }
             if (options.sortBy) {
-                filter.SortProperty = options.sortBy;
-                filter.SortAsc = options.sortOrder !== 'desc';
+                filter.sortProperty = options.sortBy;
+                filter.sortAsc = options.sortOrder !== 'desc';
             }
             // Build CRM API request body
             const requestBody = {
-                maxResultCount: parseInt(options.size, 10),
-                skipCount: (parseInt(options.page, 10) - 1) * parseInt(options.size, 10),
-                Filter: filter,
+                pageIndex: parseInt(options.page, 10),
+                pageSize: parseInt(options.size, 10),
+                filter,
             };
             // Make API request
             const client = (0, http_client_1.createClient)(profile);

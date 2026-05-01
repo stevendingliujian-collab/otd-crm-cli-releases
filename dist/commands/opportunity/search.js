@@ -90,11 +90,11 @@ Notes:
             const filter = {};
             // Keyword filter
             if (options.keyword) {
-                filter.LikeString = options.keyword;
+                filter.likeString = options.keyword;
             }
             // Stage filters
             if (options.stageId) {
-                filter.BusinessProcessId = options.stageId;
+                filter.businessProcessId = options.stageId;
             }
             else if (options.stage) {
                 // Lookup stage ID by name
@@ -109,48 +109,52 @@ Notes:
                 if (!stage) {
                     throw new Error(`Stage not found: ${options.stage}`);
                 }
-                filter.BusinessProcessId = stage.id;
+                filter.businessProcessId = stage.id;
                 if (globalOpts.verbose) {
                     formatter_1.formatter.info(`Found stage ID: ${stage.id}`);
                 }
             }
             // Owner filters
             if (options.ownerId) {
-                filter.OwnerId = options.ownerId;
+                filter.ownerIdInArr = [options.ownerId];
             }
             else if (options.owner) {
-                filter.Owner = options.owner;
+                filter.owner = options.owner;
             }
             // Customer filter
             if (options.customerId) {
-                filter.CustomId = options.customerId;
+                filter.customId = options.customerId;
             }
-            // Expected complete date filters
+            // Expected complete date filters (server uses PascalCase for these fields)
             if (options.expectedAfter) {
-                filter.ExpectedCompleteDateStart = new Date(options.expectedAfter).toISOString();
+                const d = new Date(options.expectedAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.ExpectedCompleteDateStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.expectedBefore) {
-                filter.ExpectedCompleteDateEnd = new Date(options.expectedBefore + 'T23:59:59').toISOString();
+                filter.ExpectedCompleteDateEnd = options.expectedBefore + 'T23:59:59';
             }
             // Amount filters
             if (options.amountMin !== undefined) {
-                filter.ExpectedTransAmountStart = options.amountMin;
+                filter.expectedTransAmountStart = options.amountMin;
             }
             if (options.amountMax !== undefined) {
-                filter.ExpectedTransAmountEnd = options.amountMax;
+                filter.expectedTransAmountEnd = options.amountMax;
             }
             // Creation time filters
             if (options.createdAfter) {
-                filter.CreationTimeStart = new Date(options.createdAfter).toISOString();
+                const d = new Date(options.createdAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.creationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.createdBefore) {
-                filter.CreationTimeEnd = new Date(options.createdBefore + 'T23:59:59').toISOString();
+                filter.creationTimeEnd = options.createdBefore + 'T23:59:59';
             }
             // Last modification time filters (for stale opportunity detection)
-            // Note: Backend uses LastFollowUpDateOutDays for "X days without update"
+            // Note: Backend uses lastFollowUpDateOutDays for "X days without update"
             if (options.followupBefore) {
-                // Use LastFollowUpDateEnd for precise followup date filter
-                filter.LastFollowUpDateEnd = new Date(options.followupBefore + 'T23:59:59').toISOString();
+                // Use lastFollowUpDateEnd for precise followup date filter
+                filter.lastFollowUpDateEnd = options.followupBefore + 'T23:59:59';
             }
             else if (options.updatedBefore) {
                 // Calculate days from updated-before to today (fallback method)
@@ -158,19 +162,19 @@ Notes:
                 const today = new Date();
                 const daysDiff = Math.floor((today.getTime() - beforeDate.getTime()) / (1000 * 60 * 60 * 24));
                 if (daysDiff > 0) {
-                    filter.LastFollowUpDateOutDays = daysDiff;
+                    filter.lastFollowUpDateOutDays = daysDiff;
                 }
             }
             // Sorting
             if (options.sortBy) {
-                filter.SortProperty = options.sortBy;
-                filter.SortAsc = options.sortOrder === 'asc';
+                filter.sortProperty = options.sortBy;
+                filter.sortAsc = options.sortOrder === 'asc';
             }
             // Build request body
             const requestBody = {
-                maxResultCount: parseInt(options.size, 10),
-                skipCount: (parseInt(options.page, 10) - 1) * parseInt(options.size, 10),
-                Filter: filter,
+                pageIndex: parseInt(options.page, 10),
+                pageSize: parseInt(options.size, 10),
+                filter,
             };
             if (globalOpts.verbose) {
                 formatter_1.formatter.info('Request filter:');
@@ -227,22 +231,12 @@ Notes:
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
             if (command.optsWithGlobals().json) {
-                console.error(JSON.stringify({
-                    error: {
-                        code: cliError.code,
-                        message: cliError.message,
-                        hint: cliError.hint,
-                        trace_id: traceId,
-                    },
-                }, null, 2));
+                console.error(formatter_1.formatter.formatJson({ success: false, error: { code: cliError.code, message: cliError.message, hint: cliError.hint }, trace_id: traceId }));
             }
             else {
-                formatter_1.formatter.error(`Error: ${cliError.code}`);
-                console.error(`   ${cliError.message}`);
-                if (cliError.hint) {
-                    console.error(`\n💡 Hint: ${cliError.hint}`);
-                }
-                console.error(`\n🔍 Trace ID: ${traceId}`);
+                formatter_1.formatter.error(`${cliError.code}: ${cliError.message}`);
+                if (cliError.hint)
+                    formatter_1.formatter.info(`Hint: ${cliError.hint}`);
             }
             process.exit(1);
         }

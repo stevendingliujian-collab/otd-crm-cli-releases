@@ -68,10 +68,12 @@ function searchCommand(task) {
             }
             // Creation time filters
             if (options.createdAfter) {
-                filter.creationTimeStart = new Date(options.createdAfter).toISOString();
+                const d = new Date(options.createdAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.creationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.createdBefore) {
-                filter.creationTimeEnd = new Date(options.createdBefore + 'T23:59:59').toISOString();
+                filter.creationTimeEnd = options.createdBefore + 'T23:59:59';
             }
             // Build request body (Task uses old pageIndex/pageSize format)
             const requestBody = {
@@ -139,22 +141,12 @@ function searchCommand(task) {
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
             if (command.optsWithGlobals().json) {
-                console.error(JSON.stringify({
-                    error: {
-                        code: cliError.code,
-                        message: cliError.message,
-                        hint: cliError.hint,
-                        trace_id: traceId,
-                    },
-                }, null, 2));
+                console.error(formatter_1.formatter.formatJson({ success: false, error: { code: cliError.code, message: cliError.message, hint: cliError.hint }, trace_id: traceId }));
             }
             else {
-                formatter_1.formatter.error(`Error: ${cliError.code}`);
-                console.error(`   ${cliError.message}`);
-                if (cliError.hint) {
-                    console.error(`\n💡 Hint: ${cliError.hint}`);
-                }
-                console.error(`\n🔍 Trace ID: ${traceId}`);
+                formatter_1.formatter.error(`${cliError.code}: ${cliError.message}`);
+                if (cliError.hint)
+                    formatter_1.formatter.info(`Hint: ${cliError.hint}`);
             }
             process.exit(1);
         }

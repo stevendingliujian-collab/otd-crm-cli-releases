@@ -1,6 +1,7 @@
 "use strict";
 /**
  * Invoice update command
+ * Uses Receive/updateReceiveDetail (detailType: 1).
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateCommand = updateCommand;
@@ -13,77 +14,77 @@ const audit_logger_1 = require("../../core/audit/audit-logger");
 const error_codes_1 = require("../../constants/error-codes");
 const InvoiceDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    code: zod_1.z.string().optional().nullable(),
-    customId: zod_1.z.string().optional().nullable(),
-    customName: zod_1.z.string().optional().nullable(),
+    receiveId: zod_1.z.string().optional().nullable(),
     invoiceDate: zod_1.z.string().optional().nullable(),
     invoiceAmount: zod_1.z.number().optional().nullable(),
-    invoicer: zod_1.z.string().optional().nullable(),
+    invoiceCode: zod_1.z.string().optional().nullable(),
+    invoiceType: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
 function updateCommand(invoice) {
     invoice
         .command('update <id>')
         .description('Update an existing invoice record')
+        .requiredOption('--receivable-id <id>', 'Parent receivable item ID (required for update)')
         .option('--amount <number>', 'Invoice amount', parseFloat)
         .option('--date <date>', 'Invoice date (YYYY-MM-DD)')
         .option('--invoice-number <string>', 'Invoice number (code)')
-        .option('--invoicer <name>', 'Invoicer name')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
   # Fill in invoice number after issuing
-  $ crm invoice update <id> --invoice-number INV-2026-001
+  $ crm invoice update <detailId> --receivable-id <receiveId> --invoice-number INV-2026-001
 
   # Update invoice date and amount
-  $ crm invoice update <id> --date 2026-04-01 --amount 100000
-
-  # Update multiple fields at once
-  $ crm invoice update <id> --invoice-number INV-2026-001 --date 2026-04-15 --amount 100000
+  $ crm invoice update <detailId> --receivable-id <receiveId> --date 2026-04-01 --amount 100000
 
   # Add remark
-  $ crm invoice update <id> --remark "增值税专用发票，已邮寄"
-
-  # Output as JSON
-  $ crm invoice update <id> --invoice-number INV-2026-001 --json
+  $ crm invoice update <detailId> --receivable-id <receiveId> --remark "增值税专用发票，已邮寄"
 
 Notes:
-  - At least one option must be provided
+  - <id> is the invoice detail record ID (from 'crm invoice create' output)
+  - --receivable-id is required: the parent 应收款项 ID (from 'crm invoice create' output)
   - --date format: YYYY-MM-DD
-  - --invoice-number sets the invoice code field
-  - Use 'crm invoice get <id>' to check current values before updating
+  - Use 'crm invoice get <receivableId>' to check current invoice records
 `)
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            if (options.amount === undefined && !options.date && !options.invoiceNumber && !options.invoicer && !options.remark) {
-                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --invoice-number, --invoicer, --remark', { available_options: ['--amount', '--date', '--invoice-number', '--invoicer', '--remark'] });
+            if (options.amount === undefined && !options.date && !options.invoiceNumber && !options.remark) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --invoice-number, --remark', { available_options: ['--amount', '--date', '--invoice-number', '--remark'] });
             }
             const client = (0, http_client_1.createClient)(profile);
-            const current = await client.get(`/api/crm/FinanceInvoice/getFinanceInvoiceById?id=${id}`, { traceId });
-            const currentParseResult = InvoiceDetailSchema.safeParse(current);
-            const currentData = currentParseResult.success
-                ? currentParseResult.data
-                : (current && typeof current === 'object' ? current : null);
-            if (!currentData || !currentData.id) {
-                throw new Error(`Invoice record not found or unreadable (id: ${id})`);
+            // Get current invoice data via parent receivable
+            const receiveData = await client.post(`/api/crm/Receive/get?id=${options.receivableId}`, {}, { traceId });
+            const invoices = receiveData?.invoices ?? [];
+            const current = invoices.find((inv) => inv.id === id);
+            if (!current) {
+                throw new Error(`Invoice record "${id}" not found in receivable "${options.receivableId}". Use 'crm invoice get ${options.receivableId}' to see available invoice IDs.`);
             }
             const body = {
-                id: currentData.id,
-                customId: currentData.customId,
-                customName: currentData.customName,
+                id: current.id,
+                receiveId: current.receiveId,
+                detailType: 1,
+                invoiceAmount: options.amount !== undefined ? options.amount : current.invoiceAmount,
+                invoiceDate: options.date
+                    ? new Date(options.date + 'T00:00:00.000Z').toISOString()
+                    : current.invoiceDate,
+                invoiceCode: options.invoiceNumber ?? current.invoiceCode ?? null,
+                remark: options.remark ?? current.remark ?? '',
+                invoiceTypeId: current.invoiceTypeId ?? null,
+                invoiceType: current.invoiceType ?? null,
+                isInvoice: current.isInvoice ?? null,
+                financeInvoiceId: current.financeInvoiceId ?? null,
+                financeReceiveId: current.financeReceiveId ?? null,
+                receiveCode: current.receiveCode ?? null,
+                actualPayDate: null,
+                actualPayAmount: null,
+                resourceFiles: current.resourceFiles ?? [],
             };
-            body.invoiceAmount = options.amount !== undefined ? options.amount : currentData.invoiceAmount;
-            body.invoiceDate = options.date
-                ? new Date(options.date).toISOString()
-                : currentData.invoiceDate;
-            body.code = options.invoiceNumber ?? currentData.code ?? '';
-            body.invoicer = options.invoicer ?? currentData.invoicer ?? '';
-            body.remark = options.remark ?? currentData.remark ?? '';
-            const response = await client.post(`/api/crm/FinanceInvoice/update?id=${id}`, body, { traceId });
+            const response = await client.post(`/api/crm/Receive/updateReceiveDetail?id=${id}`, body, { traceId });
             const parseResult = InvoiceDetailSchema.safeParse(response);
             const updated = parseResult.success ? parseResult.data : { id, ...body };
             await audit_logger_1.auditLogger.log({
@@ -92,37 +93,30 @@ Notes:
                 action: 'invoice.update',
                 resource_type: 'invoice',
                 resource_id: id,
-                meta: {
-                    profile,
-                    api_url: client['axiosInstance']?.defaults?.baseURL || '',
-                },
+                meta: { profile, api_url: '' },
                 changes: {
-                    fields_updated: ['amount', 'date', 'invoiceNumber', 'invoicer', 'remark'].filter(k => options[k] !== undefined),
+                    fields_updated: ['amount', 'date', 'invoiceNumber', 'remark'].filter(k => options[k] !== undefined),
                 },
             });
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson({ success: true, data: updated, trace_id: traceId }));
             }
             else {
                 formatter_1.formatter.success('✅ Invoice record updated successfully');
-                formatter_1.formatter.info(`ID: ${updated.id}`);
-                if (updated.code)
-                    formatter_1.formatter.info(`Invoice No: ${updated.code}`);
-                if (updated.customName)
-                    formatter_1.formatter.info(`Customer: ${updated.customName}`);
-                if (updated.invoiceAmount !== undefined && updated.invoiceAmount !== null)
-                    formatter_1.formatter.info(`Amount: ¥${updated.invoiceAmount}`);
-                if (updated.invoiceDate)
-                    formatter_1.formatter.info(`Invoice Date: ${updated.invoiceDate}`);
-                if (updated.invoicer)
-                    formatter_1.formatter.info(`Invoicer: ${updated.invoicer}`);
-                if (updated.remark)
-                    formatter_1.formatter.info(`Remark: ${updated.remark}`);
+                formatter_1.formatter.info(`ID: ${id}`);
+                if (body.invoiceCode)
+                    formatter_1.formatter.info(`Invoice No: ${body.invoiceCode}`);
+                if (body.invoiceAmount !== undefined && body.invoiceAmount !== null)
+                    formatter_1.formatter.info(`Amount: ¥${body.invoiceAmount}`);
+                if (body.invoiceDate)
+                    formatter_1.formatter.info(`Invoice Date: ${body.invoiceDate}`);
+                if (body.remark)
+                    formatter_1.formatter.info(`Remark: ${body.remark}`);
             }
         }
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
-            if (options.json) {
+            if (options.json || (command.optsWithGlobals()).json) {
                 console.error(formatter_1.formatter.formatJson({
                     success: false,
                     error: { code: cliError.code, message: cliError.message, hint: cliError.hint },

@@ -71,10 +71,29 @@ class CRMClient {
             if (tenantId && !config.headers['__tenant']) {
                 config.headers['__tenant'] = tenantId;
             }
+            if (process.env.DEBUG_CRM) {
+                const body = config.data ? JSON.stringify(config.data, null, 2) : '(none)';
+                console.error(`[DEBUG] → ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+                console.error(`[DEBUG]   __tenant: ${config.headers['__tenant'] ?? '(not set)'}`);
+                console.error(`[DEBUG]   body: ${body}`);
+            }
             return config;
         }, (error) => Promise.reject(error));
         // Response interceptor: handle errors
-        this.axiosInstance.interceptors.response.use((response) => response, (error) => {
+        this.axiosInstance.interceptors.response.use((response) => {
+            if (process.env.DEBUG_CRM) {
+                const body = response.data !== null && response.data !== undefined
+                    ? JSON.stringify(response.data, null, 2)
+                    : '(empty)';
+                console.error(`[DEBUG] ← ${response.status} ${response.config.url}`);
+                console.error(`[DEBUG]   response: ${body}`);
+            }
+            return response;
+        }, (error) => {
+            if (process.env.DEBUG_CRM && error.response) {
+                console.error(`[DEBUG] ← ${error.response.status} ${error.config?.url}`);
+                console.error(`[DEBUG]   error response: ${JSON.stringify(error.response.data, null, 2)}`);
+            }
             throw error_handler_1.errorHandler.handle(error);
         });
     }

@@ -19,13 +19,13 @@ function assignCommand(task) {
         .argument('<id>', 'Task ID (UUID)')
         .requiredOption('--owner <name>', 'New responsible user name (fuzzy search)')
         .option('--owner-id <id>', 'New responsible user ID (UUID) - use if name search returns multiple matches')
-        .option('--yes, -y', 'Skip confirmation prompt')
+        .option('-y, --yes', 'Skip confirmation prompt')
         .option('--json', 'Output as JSON')
-        .option('--verbose, -v', 'Show verbose output')
+        .option('-v, --verbose', 'Show verbose output')
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
+        const globalOpts = command.optsWithGlobals();
         try {
-            const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
             // Step 1: Resolve owner (name → ID)
@@ -51,7 +51,7 @@ function assignCommand(task) {
                 if (users.length > 1) {
                     // Multiple matches - report and exit
                     const errorMsg = `Found ${users.length} users matching "${options.owner}". Please specify one:`;
-                    if (options.json) {
+                    if (options.json || globalOpts.json) {
                         console.error(formatter_1.formatter.formatJson({
                             success: false,
                             error: {
@@ -146,7 +146,7 @@ function assignCommand(task) {
                 },
             });
             // Step 6: Output
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson({
                     success: true,
                     data: updated,
@@ -164,7 +164,7 @@ function assignCommand(task) {
         }
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.error(formatter_1.formatter.formatJson({
                     success: false,
                     error: {

@@ -11,6 +11,7 @@ const update_1 = require("./update");
 const assign_1 = require("./assign");
 const stages_1 = require("./stages");
 const stage_1 = require("./stage");
+const products_1 = require("./products");
 function opportunityCommands(program) {
     const opportunity = program
         .command('opportunity')
@@ -23,5 +24,6 @@ function opportunityCommands(program) {
     (0, assign_1.assignCommand)(opportunity);
     (0, stages_1.stagesCommand)(opportunity);
     (0, stage_1.stageCommand)(opportunity);
+    (0, products_1.productsCommand)(opportunity);
 }
 //# sourceMappingURL=index.js.map

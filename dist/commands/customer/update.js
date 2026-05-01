@@ -20,13 +20,13 @@ function updateCommand(customer) {
         .option('--level <text>', 'Customer level (A/B/C/D)')
         .option('--address <text>', 'Detailed address')
         .option('--description <text>', 'Customer description')
-        .option('--yes, -y', 'Skip confirmation prompt')
+        .option('-y, --yes', 'Skip confirmation prompt')
         .option('--json', 'Output as JSON')
-        .option('--verbose, -v', 'Show verbose output')
+        .option('-v, --verbose', 'Show verbose output')
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
+        const globalOpts = command.optsWithGlobals();
         try {
-            const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             // Validate at least one field is provided
             if (!options.name && !options.industry && !options.level && !options.address && !options.description) {
@@ -106,11 +106,14 @@ function updateCommand(customer) {
             if (options.verbose) {
                 formatter_1.formatter.info('Sending update request...');
             }
-            // ID must be in URL query param, not body (per ABP convention)
-            console.error(`[DEBUG] Calling POST /api/crm/custom/update?id=${id}`);
-            console.error(`[DEBUG] Request body:`, JSON.stringify(body, null, 2));
+            if (process.env.DEBUG_CRM) {
+                console.error(`[DEBUG] → POST /api/crm/custom/update?id=${id}`);
+                console.error(`[DEBUG]   body:`, JSON.stringify(body, null, 2));
+            }
             const response = await client.post(`/api/crm/custom/update?id=${id}`, body, { traceId });
-            console.error(`[DEBUG] Response:`, JSON.stringify(response, null, 2));
+            if (process.env.DEBUG_CRM) {
+                console.error(`[DEBUG] ← response:`, JSON.stringify(response, null, 2));
+            }
             const updated = customer_1.CustomerSchema.parse(response);
             // Step 5: Log audit
             await audit_logger_1.auditLogger.log({
@@ -128,7 +131,7 @@ function updateCommand(customer) {
                 },
             });
             // Step 6: Output
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson({
                     success: true,
                     data: updated,
@@ -149,7 +152,7 @@ function updateCommand(customer) {
         }
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.error(formatter_1.formatter.formatJson({
                     success: false,
                     error: {

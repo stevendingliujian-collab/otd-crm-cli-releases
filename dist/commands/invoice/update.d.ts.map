@@ -1,1 +1,1 @@
-{"version":3,"file":"update.d.ts","sourceRoot":"","sources":["../../../src/commands/invoice/update.ts"],"names":[],"mappings":"AAAA;;GAEG;AAEH,OAAO,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAoBpC,wBAAgB,aAAa,CAAC,OAAO,EAAE,OAAO,GAAG,IAAI,CA4HpD"}
+{"version":3,"file":"update.d.ts","sourceRoot":"","sources":["../../../src/commands/invoice/update.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAmBpC,wBAAgB,aAAa,CAAC,OAAO,EAAE,OAAO,GAAG,IAAI,CAsHpD"}

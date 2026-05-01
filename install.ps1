@@ -1,118 +1,89 @@
-# CRM CLI Installer for Windows (PowerShell)
-# Supports both Git and npm installation methods
-# Usage: Invoke-WebRequest https://www.otd-odincloud.com/install-crm-cli.ps1 -OutFile install.ps1; .\install.ps1
+# OTD CRM CLI Installer (Windows PowerShell)
+# Usage: irm https://github.com/stevendingliujian-collab/otd-crm-cli-releases/releases/latest/download/install.ps1 | iex
 
-Write-Host "🚀 Installing OTD CRM CLI..." -ForegroundColor Green
+$ErrorActionPreference = "Stop"
 
-# Configuration
-$GIT_REPO = "https://github.com/stevendingliujian-collab/otd-crm-cli-releases.git"
-$INSTALL_DIR = "$HOME\.crm-cli"
+$RELEASES_REPO = "stevendingliujian-collab/otd-crm-cli-releases"
+$GITHUB_API    = "https://api.github.com/repos/$RELEASES_REPO/releases/latest"
 
-# Check Node.js
+Write-Host ""
+Write-Host "🚀 OTD CRM CLI Installer" -ForegroundColor Cyan
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
+
+# ── 1. Check Node.js ──────────────────────────────────────────────────────────
 try {
-  $NODE_VERSION = node -v 2>$null
-  if (-not $NODE_VERSION) {
-    throw "Node.js not found"
-  }
-  Write-Host "✅ Node.js detected: $NODE_VERSION" -ForegroundColor Green
+  $nodeVersion = (node -v 2>$null)
+  if (-not $nodeVersion) { throw }
 } catch {
   Write-Host "❌ Node.js is not installed." -ForegroundColor Red
   Write-Host ""
-  Write-Host "Please install Node.js first:"
-  Write-Host "  Download from: https://nodejs.org/"
-  Write-Host "  Or with winget: winget install OpenJS.NodeJS.LTS"
+  Write-Host "Install Node.js 18+ first:" -ForegroundColor Yellow
+  Write-Host "  winget install OpenJS.NodeJS.LTS"
+  Write-Host "  or download from: https://nodejs.org/"
   exit 1
 }
 
-# Check if Git is available
-$GIT_AVAILABLE = $false
-try {
-  $gitVersion = git --version 2>$null
-  if ($gitVersion) {
-    $GIT_AVAILABLE = $true
-    Write-Host "✅ Git detected: $gitVersion" -ForegroundColor Green
-  }
-} catch {
-  # Git not available
+$nodeMajor = [int]($nodeVersion.TrimStart('v').Split('.')[0])
+if ($nodeMajor -lt 18) {
+  Write-Host "❌ Node.js 18+ required (found $nodeVersion)" -ForegroundColor Red
+  Write-Host "   Upgrade from: https://nodejs.org/" -ForegroundColor Yellow
+  exit 1
 }
+Write-Host "✅ Node.js $nodeVersion" -ForegroundColor Green
 
-# Installation method selection
-if ($GIT_AVAILABLE) {
-  # Method 1: Install from Git repository
-  Write-Host ""
-  Write-Host "📦 Installing from Git repository..." -ForegroundColor Yellow
-  
-  if (Test-Path $INSTALL_DIR) {
-    Write-Host "📦 Updating existing installation..." -ForegroundColor Yellow
-    Set-Location $INSTALL_DIR
-    git pull origin main
-  } else {
-    Write-Host "📦 Cloning repository..." -ForegroundColor Yellow
-    $parentDir = Split-Path $INSTALL_DIR -Parent
-    if (-not (Test-Path $parentDir)) {
-      New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
-    }
-    git clone $GIT_REPO $INSTALL_DIR
-    Set-Location $INSTALL_DIR
-  }
-  
-  # Install dependencies
-  Write-Host "📦 Installing dependencies..." -ForegroundColor Yellow
-  npm install
-  
-  # Build
-  Write-Host "🔨 Building CLI..." -ForegroundColor Yellow
-  npm run build
-  
-  # Link globally
-  Write-Host "🔗 Linking CLI globally..." -ForegroundColor Yellow
-  npm link
-  
-} else {
-  # Method 2: Install via npm (no Git required)
-  Write-Host ""
-  Write-Host "⚠️  Git not found, installing via npm..." -ForegroundColor Yellow
-  Write-Host ""
-  Write-Host "Note: This installs the latest published version from npm." -ForegroundColor Cyan
-  Write-Host "For development version, please install Git first." -ForegroundColor Cyan
-  Write-Host ""
-  
-  try {
-    Write-Host "📦 Installing from npm registry..." -ForegroundColor Yellow
-    npm install -g @otd/crm-cli
-    
-    Write-Host ""
-    Write-Host "✅ Installation complete!" -ForegroundColor Green
-  } catch {
-    Write-Host ""
-    Write-Host "❌ npm installation failed." -ForegroundColor Red
-    Write-Host ""
-    Write-Host "Please install Git first:" -ForegroundColor Yellow
-    Write-Host "  winget install Git.Git" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Or download from: https://git-scm.com/download/win" -ForegroundColor Cyan
-    exit 1
-  }
-}
-
-# Verify installation
-Write-Host ""
-Write-Host "✅ Installation complete!" -ForegroundColor Green
-Write-Host ""
+# ── 2. Fetch latest release tgz URL ──────────────────────────────────────────
+Write-Host "🔍 Fetching latest release..."
 
 try {
-  $CRM_VERSION = crm --version 2>$null
-  Write-Host "📦 CRM CLI version: $CRM_VERSION" -ForegroundColor Cyan
+  $release = Invoke-RestMethod -Uri $GITHUB_API -UseBasicParsing
 } catch {
-  Write-Host "📦 CRM CLI installed (version check failed)" -ForegroundColor Cyan
+  Write-Host "❌ Could not fetch release info from GitHub." -ForegroundColor Red
+  Write-Host "   Check your network or visit:"
+  Write-Host "   https://github.com/$RELEASES_REPO/releases"
+  exit 1
 }
 
+$asset  = $release.assets | Where-Object { $_.name -like "*.tgz" } | Select-Object -First 1
+$tgzUrl = $asset.browser_download_url
+$version = $release.tag_name
+
+if (-not $tgzUrl) {
+  Write-Host "❌ No .tgz asset found in latest release." -ForegroundColor Red
+  exit 1
+}
+
+Write-Host "📦 Latest version: $version" -ForegroundColor Cyan
+Write-Host "📥 Downloading from: $tgzUrl" -ForegroundColor DarkGray
+
+# ── 3. Install globally via npm ───────────────────────────────────────────────
 Write-Host ""
-Write-Host "🚀 Quick start:" -ForegroundColor Cyan
-Write-Host "   crm auth device    # Login with device authorization" -ForegroundColor White
-Write-Host "   crm auth login     # Login with username/password" -ForegroundColor White
-Write-Host "   crm --help         # Show all commands" -ForegroundColor White
+Write-Host "⚙️  Installing (this may take a moment)..."
+npm install -g $tgzUrl
+
+# ── 4. Verify ─────────────────────────────────────────────────────────────────
 Write-Host ""
-Write-Host "📚 Documentation:" -ForegroundColor Cyan
-Write-Host "   https://otdmes.feishu.cn/docx/EG4zd9l2IoaUrxxrFbtcyqxWnWg" -ForegroundColor White
+try {
+  $installedVersion = crm --version 2>$null
+  Write-Host "✅ CRM CLI installed: $installedVersion" -ForegroundColor Green
+} catch {
+  Write-Host "⚠️  crm command not found in PATH." -ForegroundColor Yellow
+  Write-Host "   Restart your terminal and try again."
+  Write-Host "   If the issue persists, run: npm config get prefix"
+  Write-Host "   and add the 'bin' folder to your PATH."
+  exit 1
+}
+
+# ── 5. First-time setup hint ──────────────────────────────────────────────────
+Write-Host ""
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
+Write-Host "🎉 Installation complete!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Next steps:"
+Write-Host "  1. Initialize config:    crm config init"
+Write-Host "  2. Login (browser):      crm auth device"
+Write-Host "     Login (password):     crm auth login"
+Write-Host "  3. Verify:               crm auth whoami"
+Write-Host ""
+Write-Host "  crm --help               # Show all commands"
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor DarkGray
 Write-Host ""

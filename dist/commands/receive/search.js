@@ -1,6 +1,7 @@
 "use strict";
 /**
- * Search receive records command
+ * Search receive (payment) records command
+ * Uses Receive/getActualReceiveList — the correct frontend API.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchCommand = searchCommand;
@@ -9,28 +10,31 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const zod_1 = require("zod");
-const ReceiveSchema = zod_1.z.object({
+const ReceiveDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    code: zod_1.z.string().optional().nullable(),
-    customId: zod_1.z.string().optional().nullable(),
+    receiveId: zod_1.z.string().optional().nullable(),
+    contractCode: zod_1.z.string().optional().nullable(),
+    contractName: zod_1.z.string().optional().nullable(),
     customName: zod_1.z.string().optional().nullable(),
-    actualPayDate: zod_1.z.string().optional().nullable(),
+    collectionCycle: zod_1.z.string().optional().nullable(),
+    amount: zod_1.z.number().optional().nullable(),
     actualPayAmount: zod_1.z.number().optional().nullable(),
-    actualPayer: zod_1.z.string().optional().nullable(),
-    remark: zod_1.z.string().optional().nullable(),
+    actualPayDate: zod_1.z.string().optional().nullable(),
+    actualPayRemark: zod_1.z.string().optional().nullable(),
+    paymentMethodCode: zod_1.z.string().optional().nullable(),
+    owner: zod_1.z.string().optional().nullable(),
 }).passthrough();
-const SearchReceivesResponseSchema = zod_1.z.object({
+const SearchResponseSchema = zod_1.z.object({
     totalCount: zod_1.z.number(),
-    items: zod_1.z.array(ReceiveSchema),
+    items: zod_1.z.array(ReceiveDetailSchema),
 }).passthrough();
 function searchCommand(receive) {
     receive
         .command('search')
         .description('Search receive (payment) records')
-        .option('--customer <name>', 'Filter by customer name')
+        .option('--customer <name>', 'Filter by customer name (partial match)')
         .option('--customer-id <id>', 'Filter by customer ID')
         .option('--contract <code>', 'Filter by contract code')
-        .option('--payer <name>', 'Filter by payer name')
         .option('--from <date>', 'Pay date from (YYYY-MM-DD)')
         .option('--to <date>', 'Pay date to (YYYY-MM-DD)')
         .option('--page <number>', 'Page number (default: 1)', '1')
@@ -38,25 +42,25 @@ function searchCommand(receive) {
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Search all payment records for a customer
-  $ crm receive search --customer-id 3a1973c6-0a85-b26f-1bbd-d236ff3e0250
+  # Search payment records by customer name
+  $ crm receive search --customer "润弘"
 
-  # Search by customer name
-  $ crm receive search --customer "北京科技"
+  # Search by customer ID
+  $ crm receive search --customer-id 3a1f58d9-4e81-4096-a1c0-5ecae79140fd
 
-  # Search payments for a contract code
-  $ crm receive search --contract HT-2026-001
+  # Search by contract code
+  $ crm receive search --contract SO20260408001
 
   # Search payments in date range
-  $ crm receive search --from 2026-01-01 --to 2026-03-31
+  $ crm receive search --from 2026-01-01 --to 2026-06-30
 
   # Export as JSON
-  $ crm receive search --customer-id <id> --json > payments.json
+  $ crm receive search --customer "润弘" --json
 
 Notes:
-  - --customer does partial name match
-  - --contract filters by contract code (not ID)
-  - Date range uses ISO format (YYYY-MM-DD)
+  - Returns actual payment detail records (detailType: 0)
+  - Each record shows the parent receivable context (contract, customer, collection cycle)
+  - Use 'crm receivable search' to find receivable IDs for 'crm receive get'
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -71,38 +75,45 @@ Notes:
                 filter.CustomId = options.customerId;
             if (options.contract)
                 filter.ContractCode = options.contract;
-            if (options.payer)
-                filter.Receiver = options.payer;
-            if (options.from)
-                filter.ActualPayDateStart = new Date(options.from).toISOString();
+            // Subtract 1 second from start so server's strict ">" includes the start date.
+            if (options.from) {
+                const d = new Date(options.from + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.actualPayDateStart = d.toISOString().replace('Z', '').split('.')[0];
+            }
             if (options.to)
-                filter.ActualPayDateEnd = new Date(options.to + 'T23:59:59').toISOString();
+                filter.actualPayDateEnd = options.to + 'T23:59:59';
+            filter.sortAsc = false;
             const params = {
-                maxResultCount: parseInt(options.size),
-                skipCount: (parseInt(options.page) - 1) * parseInt(options.size),
-                Filter: filter,
+                pageIndex: parseInt(options.page),
+                pageSize: parseInt(options.size),
+                filter,
             };
-            const response = await client.post('/api/crm/FinanceReceive/getList', params, { traceId });
-            const parseResult = SearchReceivesResponseSchema.safeParse(response);
+            const response = await client.post('/api/crm/Receive/getActualReceiveList', params, { traceId });
+            const parseResult = SearchResponseSchema.safeParse(response);
             const validated = parseResult.success
                 ? parseResult.data
-                : { totalCount: Array.isArray(response?.items) ? response.items.length : 0, items: Array.isArray(response?.items) ? response.items : [] };
+                : {
+                    totalCount: Array.isArray(response?.items) ? response.items.length : 0,
+                    items: Array.isArray(response?.items) ? response.items : [],
+                };
             if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson(validated));
             }
             else {
                 const output = formatter_1.formatter.format(validated.items, {
                     format: 'table',
-                    fields: ['id', 'customName', 'actualPayAmount', 'actualPayDate', 'actualPayer'],
+                    fields: ['id', 'customName', 'contractCode', 'collectionCycle', 'actualPayAmount', 'actualPayDate'],
                     headers: {
                         id: 'ID',
                         customName: 'Customer',
+                        contractCode: 'Contract',
+                        collectionCycle: 'Cycle',
                         actualPayAmount: 'Amount',
                         actualPayDate: 'Pay Date',
-                        actualPayer: 'Payer',
                     },
                 });
-                console.log(`Found ${validated.totalCount} receive records\n`);
+                console.log(`Found ${validated.totalCount} payment records\n`);
                 console.log(output);
             }
         }

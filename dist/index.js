@@ -37,6 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.buildProgram = buildProgram;
 const commander_1 = require("commander");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
@@ -53,15 +54,22 @@ const receive_1 = require("./commands/receive");
 const receivable_1 = require("./commands/receivable");
 const invoice_1 = require("./commands/invoice");
 const update_1 = require("./commands/update");
+const skills_1 = require("./commands/skills");
 const update_checker_1 = require("./utils/update-checker");
 // Read version dynamically from package.json so it stays in sync with releases
 const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '../package.json'), 'utf-8'));
-const program = new commander_1.Command();
-program
-    .name('crm')
-    .description('OTD CRM Command Line Interface')
-    .version(pkg.version)
-    .addHelpText('after', `
+/**
+ * Build a fresh Commander program instance.
+ * Exported so tests can call buildProgram().parseAsync([...]) without
+ * running into stale state between test cases.
+ */
+function buildProgram() {
+    const program = new commander_1.Command();
+    program
+        .name('crm')
+        .description('OTD CRM Command Line Interface')
+        .version(pkg.version)
+        .addHelpText('after', `
 Getting Started:
   1. Login to CRM
      $ crm auth login
@@ -117,36 +125,42 @@ For command-specific help:
   $ crm <command> -h
   $ crm <command> <subcommand> -h
 `);
-// Global options
-program
-    .option('--profile <name>', 'Account profile', 'default')
-    .option('--env <env>', 'Environment (dev/staging/prod)')
-    .option('--json', 'Output in JSON format', false)
-    .option('-o, --output <format>', 'Output format (table/json)', 'table')
-    .option('--fields <fields>', 'Fields to return (comma-separated)')
-    .option('-y, --yes', 'Skip confirmation', false)
-    .option('--timeout <ms>', 'Request timeout in milliseconds', '30000')
-    .option('-v, --verbose', 'Verbose output', false);
-// Register command groups
-(0, auth_1.authCommands)(program);
-(0, config_1.configCommands)(program);
-(0, customer_1.customerCommands)(program);
-(0, clue_1.clueCommands)(program);
-(0, opportunity_1.opportunityCommands)(program);
-(0, contract_1.contractCommands)(program);
-(0, followup_1.followupCommands)(program);
-(0, task_1.registerTaskCommands)(program);
-(0, contact_1.contactCommands)(program);
-(0, receive_1.receiveCommands)(program);
-(0, receivable_1.receivableCommands)(program);
-(0, invoice_1.invoiceCommands)(program);
-(0, update_1.updateCommand)(program);
-// Parse arguments
-program.parse(process.argv);
-// Check for updates (non-blocking, runs in background)
-(0, update_checker_1.checkForUpdates)().catch(() => { });
-// Show help if no command
-if (!process.argv.slice(2).length) {
-    program.outputHelp();
+    // Global options
+    program
+        .option('--profile <name>', 'Account profile', 'default')
+        .option('--env <env>', 'Environment (dev/staging/prod)')
+        .option('--json', 'Output in JSON format', false)
+        .option('-o, --output <format>', 'Output format (table/json)', 'table')
+        .option('--fields <fields>', 'Fields to return (comma-separated)')
+        .option('-y, --yes', 'Skip confirmation', false)
+        .option('--timeout <ms>', 'Request timeout in milliseconds', '30000')
+        .option('-v, --verbose', 'Verbose output', false);
+    // Register command groups
+    (0, auth_1.authCommands)(program);
+    (0, config_1.configCommands)(program);
+    (0, customer_1.customerCommands)(program);
+    (0, clue_1.clueCommands)(program);
+    (0, opportunity_1.opportunityCommands)(program);
+    (0, contract_1.contractCommands)(program);
+    (0, followup_1.followupCommands)(program);
+    (0, task_1.registerTaskCommands)(program);
+    (0, contact_1.contactCommands)(program);
+    (0, receive_1.receiveCommands)(program);
+    (0, receivable_1.receivableCommands)(program);
+    (0, invoice_1.invoiceCommands)(program);
+    (0, update_1.updateCommand)(program);
+    (0, skills_1.skillsCommands)(program);
+    return program;
+}
+// ── Entry point (only when run directly) ──────────────────────────────────────
+if (require.main === module) {
+    const program = buildProgram();
+    program.parse(process.argv);
+    // Check for updates (non-blocking, runs in background)
+    (0, update_checker_1.checkForUpdates)().catch(() => { });
+    // Show help if no command
+    if (!process.argv.slice(2).length) {
+        program.outputHelp();
+    }
 }
 //# sourceMappingURL=index.js.map

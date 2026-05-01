@@ -15,19 +15,18 @@ function updateCommand(clue) {
     clue
         .command('update <id>')
         .description('Update an existing clue')
-        .argument('<id>', 'Clue ID (UUID)')
         .option('--name <text>', 'Clue name')
         .option('--contact <text>', 'Contact person name')
         .option('--phone <text>', 'Contact phone number')
         .option('--status <text>', 'Clue status')
         .option('--description <text>', 'Clue description')
-        .option('--yes, -y', 'Skip confirmation prompt')
+        .option('-y, --yes', 'Skip confirmation prompt')
         .option('--json', 'Output as JSON')
-        .option('--verbose, -v', 'Show verbose output')
+        .option('-v, --verbose', 'Show verbose output')
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
+        const globalOpts = command.optsWithGlobals();
         try {
-            const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             // Validate at least one field is provided
             if (!options.name && !options.contact && !options.phone && !options.status && !options.description) {
@@ -125,7 +124,7 @@ function updateCommand(clue) {
                 },
             });
             // Step 6: Output
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson({
                     success: true,
                     data: updated,
@@ -146,7 +145,7 @@ function updateCommand(clue) {
         }
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
-            if (options.json) {
+            if (options.json || globalOpts.json) {
                 console.error(formatter_1.formatter.formatJson({
                     success: false,
                     error: {

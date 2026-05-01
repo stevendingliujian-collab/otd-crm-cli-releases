@@ -4,45 +4,35 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.convertCommand = convertCommand;
+const zod_1 = require("zod");
 const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
-const zod_1 = require("zod");
+// ABP response: likely returns the new customer object or a simple success indicator
 const ConvertResponseSchema = zod_1.z.object({
-    success: zod_1.z.boolean(),
-    data: zod_1.z.object({
-        customer_id: zod_1.z.string(),
-        opportunity_id: zod_1.z.string().optional(),
-    }),
-    meta: zod_1.z.object({
-        trace_id: zod_1.z.string(),
-        timestamp: zod_1.z.string(),
-    }),
-});
+    id: zod_1.z.string().optional(),
+    customId: zod_1.z.string().optional().nullable(),
+    customName: zod_1.z.string().optional().nullable(),
+}).passthrough();
 function convertCommand(clue) {
     clue
         .command('convert <id>')
         .description('Convert clue (lead) to customer')
-        .option('--create-opportunity', 'Also create an opportunity after conversion', false)
+        .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Convert clue to customer (basic)
+  # Convert clue to customer
   $ crm clue convert a1b2c3d4-e5f6-7890-abcd-ef1234567890
-  
-  # Convert clue and create opportunity in one step
-  $ crm clue convert a1b2c3d4-e5f6-7890-abcd-ef1234567890 --create-opportunity
-  
+
   # Convert and export result as JSON
   $ crm clue convert a1b2c3d4-e5f6-7890-abcd-ef1234567890 --json
 
 Notes:
-  - ID must be a valid clue UUID (36 characters)
-  - Returns the new customer_id after conversion
-  - If --create-opportunity is used, also returns opportunity_id
+  - ID must be a valid clue UUID (use 'crm clue search' to find it)
   - This is a write operation (requires appropriate permissions)
-  - Cannot be undone (but you can delete the created customer if needed)
-  - Use --json for machine-readable output
+  - Cannot be undone
+  - After conversion, use 'crm customer get <customerId>' to view the new customer
 `)
         .action(async (id, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -50,55 +40,44 @@ Notes:
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
-            const response = await client.post(`/clues/${id}/convert`, {
-                create_opportunity: options.createOpportunity,
-            }, { traceId });
-            const validated = ConvertResponseSchema.parse(response);
+            const response = await client.post(`/api/crm/clue/convert?id=${id}`, {}, { traceId });
+            const parseResult = ConvertResponseSchema.safeParse(response);
+            const result = parseResult.success
+                ? parseResult.data
+                : (response && typeof response === 'object' ? response : {});
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
                 operator: 'current_user',
                 action: 'clue.convert',
                 resource_type: 'clue',
                 resource_id: id,
-                changes: {
-                    create_opportunity: options.createOpportunity,
-                    customer_id: validated.data.customer_id,
-                    opportunity_id: validated.data.opportunity_id,
-                },
-                meta: {
-                    profile,
-                    api_url: await client['axiosInstance'].defaults.baseURL || '',
-                },
+                meta: { profile, api_url: '' },
+                changes: { converted_to_customer: result.id || result.customId },
             });
-            if (globalOpts.json) {
-                console.log(JSON.stringify(validated.data, null, 2));
+            if (options.json || globalOpts.json) {
+                console.log(formatter_1.formatter.formatJson({ success: true, data: result, trace_id: traceId }));
             }
             else {
-                formatter_1.formatter.success(`Clue converted to customer: ${validated.data.customer_id}`);
-                if (validated.data.opportunity_id) {
-                    console.log(`Opportunity created: ${validated.data.opportunity_id}`);
-                }
+                formatter_1.formatter.success('✅ Clue converted to customer successfully');
+                if (result.id)
+                    formatter_1.formatter.info(`Customer ID: ${result.id}`);
+                if (result.customName)
+                    formatter_1.formatter.info(`Customer Name: ${result.customName}`);
             }
         }
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
-            if (command.optsWithGlobals().json) {
-                console.error(JSON.stringify({
-                    error: {
-                        code: cliError.code,
-                        message: cliError.message,
-                        hint: cliError.hint,
-                        trace_id: traceId,
-                    },
-                }, null, 2));
+            if (options.json || (command.optsWithGlobals()).json) {
+                console.error(formatter_1.formatter.formatJson({
+                    success: false,
+                    error: { code: cliError.code, message: cliError.message, hint: cliError.hint },
+                    trace_id: traceId,
+                }));
             }
             else {
-                formatter_1.formatter.error(`Error: ${cliError.code}`);
-                console.error(`   ${cliError.message}`);
-                if (cliError.hint) {
-                    console.error(`\n💡 Hint: ${cliError.hint}`);
-                }
-                console.error(`\n🔍 Trace ID: ${traceId}`);
+                formatter_1.formatter.error(`${cliError.code}: ${cliError.message}`);
+                if (cliError.hint)
+                    formatter_1.formatter.info(`Hint: ${cliError.hint}`);
             }
             process.exit(1);
         }

@@ -1,6 +1,7 @@
 "use strict";
 /**
- * Create receive record command
+ * Create receive (payment) record command
+ * Uses Receive/createReceiveDetail (detailType: 0) — the correct frontend API.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCommand = createCommand;
@@ -11,39 +12,36 @@ const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const ReceiveDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    code: zod_1.z.string().optional().nullable(),
-    customName: zod_1.z.string().optional().nullable(),
+    receiveId: zod_1.z.string().optional().nullable(),
     actualPayDate: zod_1.z.string().optional().nullable(),
     actualPayAmount: zod_1.z.number().optional().nullable(),
-    actualPayer: zod_1.z.string().optional().nullable(),
+    receiveCode: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
 function createCommand(receive) {
     receive
         .command('create')
-        .description('Create a new receive (payment) record')
+        .description('Create a new receive (payment) record (收款登记)')
         .requiredOption('--amount <number>', 'Receive amount', parseFloat)
-        .requiredOption('--date <date>', 'Receive date (YYYY-MM-DD)')
-        .requiredOption('--receivable-id <id>', 'Receivable item ID (合同应收款项ID)')
-        .option('--customer-name <name>', 'Customer name')
-        .option('--payer <name>', 'Payer name')
+        .requiredOption('--date <date>', 'Payment date (YYYY-MM-DD)')
+        .requiredOption('--receivable-id <id>', 'Receivable item ID (应收款项ID)')
         .option('--remark <text>', 'Remark')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Create a receive record linked to a contract receivable item
-  $ crm receive create --amount 50000 --date 2026-04-10 --receivable-id <receivable-id>
+  # Create a payment record linked to a contract receivable item
+  $ crm receive create --amount 115648.2 --date 2026-04-03 --receivable-id <receivable-id>
 
-  # Create with customer, payer and remark
-  $ crm receive create --amount 80000 --date 2026-04-15 --receivable-id <receivable-id> --customer-name "北京科技" --payer "张三" --remark "银行转账，流水号12345"
+  # With remark
+  $ crm receive create --amount 80000 --date 2026-04-15 --receivable-id <id> --remark "银行转账，流水号12345"
 
   # Output as JSON
-  $ crm receive create --amount 50000 --date 2026-04-10 --receivable-id <receivable-id> --json
+  $ crm receive create --amount 50000 --date 2026-04-10 --receivable-id <id> --json
 
 Notes:
   - --date format: YYYY-MM-DD
-  - --receivable-id: the 应收款项 ID from the contract (crm contract get <id> to find it)
-  - The contract is automatically resolved from the receivable item
+  - --receivable-id: the 应收款项 ID from the contract (use 'crm receivable search' to find it)
+  - detailType: 0 (payment) is used internally
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -51,70 +49,40 @@ Notes:
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
-            // Fetch receivable item → contractId, then contract → customId
-            const receivable = await client.post(`/api/crm/Receive/get?id=${options.receivableId}`, {}, { traceId });
-            const contractId = receivable?.contractId;
-            if (!contractId) {
-                throw new Error(`Could not resolve contractId from receivable ${options.receivableId}`);
-            }
-            const contract = await client.get(`/api/crm/Contract/getContractById?id=${contractId}`, { traceId });
-            const customId = contract?.customId;
-            const customName = options.customerName || contract?.customName || '';
             const body = {
-                customId: customId || undefined,
-                customName,
+                receiveId: options.receivableId,
+                detailType: 0,
+                actualPayDate: new Date(options.date + 'T00:00:00.000Z').toISOString(),
                 actualPayAmount: options.amount,
-                actualPayDate: new Date(options.date).toISOString(),
-                actualPayer: options.payer || '',
                 remark: options.remark || '',
-                fileIds: [],
-                contracts: [
-                    {
-                        id: contractId,
-                        receives: [
-                            {
-                                id: options.receivableId,
-                                actualPayAmount: options.amount,
-                                remark: options.remark || '',
-                            },
-                        ],
-                    },
-                ],
             };
-            const response = await client.post('/api/crm/FinanceReceive/create', body, { traceId });
+            const response = await client.post('/api/crm/Receive/createReceiveDetail', body, { traceId });
             const parseResult = ReceiveDetailSchema.safeParse(response);
-            const record = parseResult.success ? parseResult.data : (response && typeof response === 'object' ? response : {});
+            const record = parseResult.success
+                ? parseResult.data
+                : (response && typeof response === 'object' ? response : {});
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
                 operator: 'current_user',
                 action: 'receive.create',
                 resource_type: 'receive',
                 resource_id: record.id,
-                meta: {
-                    profile,
-                    api_url: client['axiosInstance']?.defaults?.baseURL || '',
-                },
-                changes: {
-                    amount: options.amount,
-                    date: options.date,
-                },
+                meta: { profile, api_url: '' },
+                changes: { amount: options.amount, date: options.date },
             });
             if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson({ success: true, data: record, trace_id: traceId }));
             }
             else {
                 formatter_1.formatter.success('✅ Receive record created successfully');
-                formatter_1.formatter.info(`ID: ${record.id}`);
-                if (record.code)
-                    formatter_1.formatter.info(`Code: ${record.code}`);
-                if (record.customName)
-                    formatter_1.formatter.info(`Customer: ${record.customName}`);
+                if (record.id)
+                    formatter_1.formatter.info(`ID: ${record.id}`);
                 if (record.actualPayAmount !== undefined && record.actualPayAmount !== null)
                     formatter_1.formatter.info(`Amount: ¥${record.actualPayAmount}`);
                 if (record.actualPayDate)
                     formatter_1.formatter.info(`Pay Date: ${record.actualPayDate}`);
-                if (record.actualPayer)
-                    formatter_1.formatter.info(`Payer: ${record.actualPayer}`);
+                if (record.receiveId)
+                    formatter_1.formatter.info(`Receivable ID: ${record.receiveId}`);
             }
         }
         catch (error) {

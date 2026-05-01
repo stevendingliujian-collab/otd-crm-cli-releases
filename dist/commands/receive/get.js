@@ -1,6 +1,7 @@
 "use strict";
 /**
- * Get receive record command
+ * Get receive records command
+ * Uses Receive/get?id=<receivableId> — returns actualReceives[] for the receivable item.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCommand = getCommand;
@@ -9,54 +10,71 @@ const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
-const FinanceReceiveDetailSchema = zod_1.z.object({
+const ReceiveDetailItemSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    code: zod_1.z.string().optional().nullable(),
-    customId: zod_1.z.string().optional().nullable(),
-    customName: zod_1.z.string().optional().nullable(),
+    receiveId: zod_1.z.string().optional().nullable(),
     actualPayDate: zod_1.z.string().optional().nullable(),
     actualPayAmount: zod_1.z.number().optional().nullable(),
-    actualPayer: zod_1.z.string().optional().nullable(),
+    receiveCode: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
     creationTime: zod_1.z.string().optional().nullable(),
+    creatorName: zod_1.z.string().optional().nullable(),
+}).passthrough();
+const ReceiveGetResponseSchema = zod_1.z.object({
+    actualReceives: zod_1.z.array(ReceiveDetailItemSchema).optional().default([]),
 }).passthrough();
 function getCommand(receive) {
     receive
-        .command('get <id>')
-        .description('Get a receive record by ID')
+        .command('get <receivableId>')
+        .description('Get payment records for a receivable item')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  $ crm receive get 3a1973c6-0a85-b26f-1bbd-d236ff3e0250
-  $ crm receive get <id> --json
+  # Show all payment records for a receivable
+  $ crm receive get 3a207e87-f795-e74a-4135-6fe030c332f9
+
+  # Output as JSON
+  $ crm receive get <receivableId> --json
+
+Notes:
+  - <receivableId> is the 应收款项 ID (use 'crm receivable search' to find it)
+  - Also shown as "Receivable ID" in 'crm receive create' output
+  - Returns all payment records (actualReceives) for the given receivable item
 `)
-        .action(async (id, options, command) => {
+        .action(async (receivableId, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
             const client = (0, http_client_1.createClient)(profile);
-            const data = await client.get(`/api/crm/FinanceReceive/getFinanceReceiveById?id=${id}`, { traceId });
-            const record = FinanceReceiveDetailSchema.parse(data);
+            const data = await client.post(`/api/crm/Receive/get?id=${receivableId}`, {}, { traceId });
+            const parseResult = ReceiveGetResponseSchema.safeParse(data);
+            const records = parseResult.success
+                ? parseResult.data.actualReceives
+                : (data?.actualReceives ?? []);
             if (options.json || globalOpts.json) {
-                console.log(formatter_1.formatter.formatJson(record));
+                console.log(formatter_1.formatter.formatJson({ receivableId, count: records.length, actualReceives: records }));
             }
             else {
-                formatter_1.formatter.info(`ID: ${record.id}`);
-                if (record.code)
-                    formatter_1.formatter.info(`Code: ${record.code}`);
-                if (record.customName)
-                    formatter_1.formatter.info(`Customer: ${record.customName}`);
-                if (record.actualPayAmount !== undefined && record.actualPayAmount !== null)
-                    formatter_1.formatter.info(`Amount: ¥${record.actualPayAmount}`);
-                if (record.actualPayDate)
-                    formatter_1.formatter.info(`Pay Date: ${record.actualPayDate}`);
-                if (record.actualPayer)
-                    formatter_1.formatter.info(`Payer: ${record.actualPayer}`);
-                if (record.remark)
-                    formatter_1.formatter.info(`Remark: ${record.remark}`);
-                if (record.creationTime)
-                    formatter_1.formatter.info(`Created: ${record.creationTime}`);
+                if (records.length === 0) {
+                    formatter_1.formatter.info(`No payment records found for receivable: ${receivableId}`);
+                }
+                else {
+                    console.log(`Payment records for receivable ${receivableId} (${records.length} total):\n`);
+                    for (const r of records) {
+                        formatter_1.formatter.info(`─── Record ID: ${r.id}`);
+                        if (r.actualPayAmount !== undefined && r.actualPayAmount !== null)
+                            formatter_1.formatter.info(`    Amount:   ¥${r.actualPayAmount}`);
+                        if (r.actualPayDate)
+                            formatter_1.formatter.info(`    Pay Date: ${r.actualPayDate}`);
+                        if (r.receiveCode)
+                            formatter_1.formatter.info(`    Code:     ${r.receiveCode}`);
+                        if (r.remark)
+                            formatter_1.formatter.info(`    Remark:   ${r.remark}`);
+                        if (r.creatorName)
+                            formatter_1.formatter.info(`    Creator:  ${r.creatorName}`);
+                    }
+                }
             }
         }
         catch (error) {

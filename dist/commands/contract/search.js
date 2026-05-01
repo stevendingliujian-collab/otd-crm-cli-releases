@@ -56,10 +56,12 @@ function searchCommand(contract) {
             }
             // Signed date filters (P2)
             if (options.signedAfter) {
-                filter.signedDateStart = new Date(options.signedAfter).toISOString();
+                const d = new Date(options.signedAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.signedDateStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.signedBefore) {
-                filter.signedDateEnd = new Date(options.signedBefore + 'T23:59:59').toISOString();
+                filter.signedDateEnd = options.signedBefore + 'T23:59:59';
             }
             // Amount filters (P2)
             if (options.amountMin !== undefined) {
@@ -77,10 +79,12 @@ function searchCommand(contract) {
             }
             // Creation time filters
             if (options.createdAfter) {
-                filter.creationTimeStart = new Date(options.createdAfter).toISOString();
+                const d = new Date(options.createdAfter + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.creationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
             }
             if (options.createdBefore) {
-                filter.creationTimeEnd = new Date(options.createdBefore + 'T23:59:59').toISOString();
+                filter.creationTimeEnd = options.createdBefore + 'T23:59:59';
             }
             // Build request body
             const requestBody = {

@@ -79,22 +79,12 @@ function updateCommand(task) {
         catch (error) {
             const cliError = error_handler_1.errorHandler.handle(error);
             if (command.optsWithGlobals().json) {
-                console.error(JSON.stringify({
-                    error: {
-                        code: cliError.code,
-                        message: cliError.message,
-                        hint: cliError.hint,
-                        trace_id: traceId,
-                    },
-                }, null, 2));
+                console.error(formatter_1.formatter.formatJson({ success: false, error: { code: cliError.code, message: cliError.message, hint: cliError.hint }, trace_id: traceId }));
             }
             else {
-                formatter_1.formatter.error(`Error: ${cliError.code}`);
-                console.error(`   ${cliError.message}`);
-                if (cliError.hint) {
-                    console.error(`\n💡 Hint: ${cliError.hint}`);
-                }
-                console.error(`\n🔍 Trace ID: ${traceId}`);
+                formatter_1.formatter.error(`${cliError.code}: ${cliError.message}`);
+                if (cliError.hint)
+                    formatter_1.formatter.info(`Hint: ${cliError.hint}`);
             }
             process.exit(1);
         }

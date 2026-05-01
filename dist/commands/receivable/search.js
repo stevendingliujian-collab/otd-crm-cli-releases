@@ -69,32 +69,55 @@ Notes:
             const client = (0, http_client_1.createClient)(profile);
             const filter = {};
             if (options.customer)
-                filter.CustomName = options.customer;
+                filter.customName = options.customer;
             if (options.customerId)
-                filter.CustomId = options.customerId;
+                filter.customId = options.customerId;
             if (options.contract)
-                filter.ContractCode = options.contract;
+                filter.contractCode = options.contract;
             if (options.plannedFrom)
-                filter.PlannedPayDateStart = new Date(options.plannedFrom).toISOString();
+                filter.plannedPayDateStart = options.plannedFrom + 'T00:00:00';
             if (options.plannedTo)
-                filter.PlannedPayDateEnd = new Date(options.plannedTo + 'T23:59:59').toISOString();
-            if (options.actualFrom)
-                filter.ActualPayDateStart = new Date(options.actualFrom).toISOString();
+                filter.plannedPayDateEnd = options.plannedTo + 'T23:59:59';
+            // Send start as T00:00:00 of the previous day so server's ">" comparison
+            // includes records on the requested start date (server uses strict >).
+            if (options.actualFrom) {
+                const d = new Date(options.actualFrom + 'T00:00:00');
+                d.setSeconds(d.getSeconds() - 1);
+                filter.actualPayDateStart = d.toISOString().replace('Z', '').split('.')[0];
+            }
             if (options.actualTo)
-                filter.ActualPayDateEnd = new Date(options.actualTo + 'T23:59:59').toISOString();
+                filter.actualPayDateEnd = options.actualTo + 'T23:59:59';
             const params = {
-                maxResultCount: parseInt(options.size),
-                skipCount: (parseInt(options.page) - 1) * parseInt(options.size),
-                Filter: filter,
+                pageIndex: parseInt(options.page),
+                pageSize: parseInt(options.size),
+                filter,
             };
             const response = await client.post('/api/crm/Receive/getList', params, { traceId });
             const parseResult = SearchResponseSchema.safeParse(response);
-            const validated = parseResult.success
+            let validated = parseResult.success
                 ? parseResult.data
                 : {
                     totalCount: Array.isArray(response?.items) ? response.items.length : 0,
                     items: Array.isArray(response?.items) ? response.items : [],
                 };
+            // Client-side filter as safety net — compare date strings directly (YYYY-MM-DD)
+            // to avoid UTC offset issues with server-returned local-time values.
+            if (options.actualFrom || options.actualTo) {
+                validated = {
+                    ...validated,
+                    items: validated.items.filter((item) => {
+                        if (!item.actualPayDate)
+                            return false;
+                        const d = item.actualPayDate.slice(0, 10); // "YYYY-MM-DD"
+                        if (options.actualFrom && d < options.actualFrom)
+                            return false;
+                        if (options.actualTo && d > options.actualTo)
+                            return false;
+                        return true;
+                    }),
+                };
+                validated.totalCount = validated.items.length;
+            }
             if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson(validated));
             }

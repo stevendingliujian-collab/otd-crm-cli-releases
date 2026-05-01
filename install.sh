@@ -1,104 +1,87 @@
 #!/bin/bash
-# CRM CLI Installer
-# Supports both Git and npm installation methods
-# Usage: curl -fsSL https://www.otd-odincloud.com/install-crm-cli.sh | bash
+# OTD CRM CLI Installer (macOS / Linux)
+# Usage: curl -fsSL https://github.com/stevendingliujian-collab/otd-crm-cli-releases/releases/latest/download/install.sh | bash
 
 set -e
 
-echo "🚀 Installing OTD CRM CLI..."
+RELEASES_REPO="stevendingliujian-collab/otd-crm-cli-releases"
+GITHUB_API="https://api.github.com/repos/${RELEASES_REPO}/releases/latest"
 
-# Configuration
-GIT_REPO="https://github.com/stevendingliujian-collab/otd-crm-cli-releases.git"
-INSTALL_DIR="$HOME/.crm-cli"
+echo ""
+echo "🚀 OTD CRM CLI Installer"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Check Node.js
-NODE_VERSION=$(node -v 2>/dev/null || echo "none")
-
-if [ "$NODE_VERSION" = "none" ]; then
+# ── 1. Check Node.js ──────────────────────────────────────────────────────────
+if ! command -v node &>/dev/null; then
   echo "❌ Node.js is not installed."
   echo ""
-  echo "Please install Node.js first:"
-  echo "  macOS:   brew install node"
-  echo "  Linux:   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -"
-  echo "  Windows: Download from https://nodejs.org/"
+  echo "Please install Node.js 18+ first:"
+  echo "  macOS:  brew install node"
+  echo "  Linux:  https://nodejs.org/en/download/package-manager"
+  echo ""
   exit 1
 fi
 
-echo "✅ Node.js detected: $NODE_VERSION"
+NODE_MAJOR=$(node -e "process.stdout.write(process.versions.node.split('.')[0])")
+if [ "$NODE_MAJOR" -lt 18 ]; then
+  echo "❌ Node.js 18+ is required (found $(node -v))"
+  echo "   Please upgrade: https://nodejs.org/"
+  exit 1
+fi
+echo "✅ Node.js $(node -v)"
 
-# Check if Git is available
-if command -v git &> /dev/null; then
-  GIT_AVAILABLE=true
-  GIT_VERSION=$(git --version)
-  echo "✅ Git detected: $GIT_VERSION"
+# ── 2. Fetch latest release tgz URL ──────────────────────────────────────────
+echo "🔍 Fetching latest release..."
+
+# Try curl first, fall back to wget
+if command -v curl &>/dev/null; then
+  RELEASE_JSON=$(curl -fsSL "$GITHUB_API")
 else
-  GIT_AVAILABLE=false
-  echo "⚠️  Git not found"
+  RELEASE_JSON=$(wget -qO- "$GITHUB_API")
 fi
 
-# Installation method selection
-if [ "$GIT_AVAILABLE" = true ]; then
-  # Method 1: Install from Git repository
-  echo ""
-  echo "📦 Installing from Git repository..."
-  
-  if [ -d "$INSTALL_DIR" ]; then
-    echo "📦 Updating existing installation..."
-    cd "$INSTALL_DIR"
-    git pull origin main
-  else
-    echo "📦 Cloning repository..."
-    mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone "$GIT_REPO" "$INSTALL_DIR"
-    cd "$INSTALL_DIR"
-  fi
-  
-  # Install dependencies
-  echo "📦 Installing dependencies..."
-  npm install
+TGZ_URL=$(echo "$RELEASE_JSON" | grep '"browser_download_url"' | grep '\.tgz"' | head -1 | cut -d '"' -f 4)
+VERSION=$(echo "$RELEASE_JSON" | grep '"tag_name"' | head -1 | cut -d '"' -f 4)
 
-  # Link globally (dist/ is pre-compiled in the releases repository)
-  echo "🔗 Linking CLI globally..."
-  npm link
-  
-else
-  # Method 2: Install via npm (no Git required)
-  echo ""
-  echo "⚠️  Installing via npm (Git not available)..."
-  echo ""
-  echo "Note: This installs the latest published version from npm."
-  echo "For development version, please install Git first."
-  echo ""
-  
-  # Try to install from npm
-  if npm install -g @otd/crm-cli 2>/dev/null; then
-    echo ""
-    echo "✅ Installation complete!"
-  else
-    echo ""
-    echo "❌ npm installation failed."
-    echo ""
-    echo "Please install Git first:"
-    echo "  macOS:   brew install git"
-    echo "  Linux:   sudo apt-get install git"
-    echo "  Windows: Download from https://git-scm.com/"
-    exit 1
-  fi
+if [ -z "$TGZ_URL" ]; then
+  echo "❌ Could not fetch release info from GitHub."
+  echo "   Check your network or visit:"
+  echo "   https://github.com/${RELEASES_REPO}/releases"
+  exit 1
 fi
 
-# Verify installation
-echo ""
-echo "✅ Installation complete!"
-echo ""
+echo "📦 Latest version: $VERSION"
+echo "📥 Downloading from: $TGZ_URL"
 
-CRM_VERSION=$(crm --version 2>/dev/null || echo "unknown")
-echo "📦 CRM CLI version: $CRM_VERSION"
+# ── 3. Install globally via npm ───────────────────────────────────────────────
 echo ""
-echo "🚀 Quick start:"
-echo "   crm auth device    # Login with device authorization"
-echo "   crm auth login     # Login with username/password"
-echo "   crm --help         # Show all commands"
+echo "⚙️  Installing (this may take a moment)..."
+npm install -g "$TGZ_URL"
+
+# ── 4. Verify ─────────────────────────────────────────────────────────────────
 echo ""
-echo "📚 Documentation:"
-echo "   https://otdmes.feishu.cn/docx/EG4zd9l2IoaUrxxrFbtcyqxWnWg"
+if command -v crm &>/dev/null; then
+  INSTALLED_VERSION=$(crm --version 2>/dev/null || echo "unknown")
+  echo "✅ CRM CLI installed: $INSTALLED_VERSION"
+else
+  echo "⚠️  crm command not found in PATH."
+  echo "   npm global bin: $(npm config get prefix)/bin"
+  echo "   Add it to your PATH:"
+  echo '   export PATH="$(npm config get prefix)/bin:$PATH"'
+  exit 1
+fi
+
+# ── 5. First-time setup hint ──────────────────────────────────────────────────
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🎉 Installation complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Initialize config:    crm config init"
+echo "  2. Login (browser):      crm auth device"
+echo "     Login (password):     crm auth login"
+echo "  3. Verify:               crm auth whoami"
+echo ""
+echo "  crm --help               # Show all commands"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

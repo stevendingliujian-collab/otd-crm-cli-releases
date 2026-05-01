@@ -1,6 +1,7 @@
 "use strict";
 /**
- * Search invoices command
+ * Search invoice records command
+ * Uses Receive/getList — returns receivable items with invoice summary fields.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchCommand = searchCommand;
@@ -9,54 +10,55 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const zod_1 = require("zod");
-const InvoiceSchema = zod_1.z.object({
+const ReceivableWithInvoiceSchema = zod_1.z.object({
     id: zod_1.z.string(),
-    code: zod_1.z.string().optional().nullable(),
-    customId: zod_1.z.string().optional().nullable(),
+    contractCode: zod_1.z.string().optional().nullable(),
     customName: zod_1.z.string().optional().nullable(),
-    invoiceDate: zod_1.z.string().optional().nullable(),
+    collectionCycle: zod_1.z.string().optional().nullable(),
     invoiceAmount: zod_1.z.number().optional().nullable(),
-    invoicer: zod_1.z.string().optional().nullable(),
-    remark: zod_1.z.string().optional().nullable(),
+    unInvoiceAmount: zod_1.z.number().optional().nullable(),
+    invoiceDate: zod_1.z.string().optional().nullable(),
+    invoiceStatus: zod_1.z.number().optional().nullable(),
+    owner: zod_1.z.string().optional().nullable(),
 }).passthrough();
-const SearchInvoicesResponseSchema = zod_1.z.object({
+const SearchResponseSchema = zod_1.z.object({
     totalCount: zod_1.z.number(),
-    items: zod_1.z.array(InvoiceSchema),
+    items: zod_1.z.array(ReceivableWithInvoiceSchema),
 }).passthrough();
 function searchCommand(invoice) {
     invoice
         .command('search')
-        .description('Search invoice records')
-        .option('--customer <name>', 'Filter by customer name')
+        .description('Search receivable items with invoice status')
+        .option('--customer <name>', 'Filter by customer name (partial match)')
         .option('--customer-id <id>', 'Filter by customer ID')
         .option('--contract <code>', 'Filter by contract code')
-        .option('--invoicer <name>', 'Filter by invoicer name')
-        .option('--from <date>', 'Invoice date from (YYYY-MM-DD)')
-        .option('--to <date>', 'Invoice date to (YYYY-MM-DD)')
+        .option('--invoiced', 'Show only fully invoiced items (invoiceStatus=2)')
+        .option('--uninvoiced', 'Show only un-invoiced items (invoiceStatus=0)')
         .option('--page <number>', 'Page number (default: 1)', '1')
         .option('--size <number>', 'Page size (default: 20)', '20')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 Examples:
-  # Search all invoices for a customer
-  $ crm invoice search --customer-id 3a1973c6-0a85-b26f-1bbd-d236ff3e0250
+  # Search invoiced receivables by customer name
+  $ crm invoice search --customer "润弘"
 
-  # Search by customer name
-  $ crm invoice search --customer "北京科技"
+  # Show only fully invoiced items
+  $ crm invoice search --invoiced --customer-id <id>
 
-  # Search invoices for a contract code
-  $ crm invoice search --contract HT-2026-001
+  # Show items not yet invoiced
+  $ crm invoice search --uninvoiced
 
-  # Search invoices in date range
-  $ crm invoice search --from 2026-01-01 --to 2026-03-31
+  # Search by contract code
+  $ crm invoice search --contract SO20260408001
 
   # Export as JSON
-  $ crm invoice search --customer-id <id> --json > invoices.json
+  $ crm invoice search --customer "润弘" --json
 
 Notes:
-  - --customer does partial name match
-  - --contract filters by contract code (not ID)
-  - Date range uses ISO format (YYYY-MM-DD)
+  - Returns receivable items (应收款项) with their invoice summary
+  - invoiceStatus: 0=未开票, 1=部分开票, 2=已开票
+  - Use 'crm invoice get <id>' with the returned ID to see individual invoice records
+  - Use 'crm invoice create --receivable-id <id>' to add an invoice record
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -66,44 +68,46 @@ Notes:
             const client = (0, http_client_1.createClient)(profile);
             const filter = {};
             if (options.customer)
-                filter.CustomName = options.customer;
+                filter.customName = options.customer;
             if (options.customerId)
-                filter.CustomId = options.customerId;
+                filter.customId = options.customerId;
             if (options.contract)
-                filter.ContractCode = options.contract;
-            if (options.invoicer)
-                filter.Invoicer = options.invoicer;
-            if (options.from)
-                filter.InvoiceDateStart = new Date(options.from).toISOString();
-            if (options.to)
-                filter.InvoiceDateEnd = new Date(options.to + 'T23:59:59').toISOString();
+                filter.contractCode = options.contract;
+            if (options.invoiced)
+                filter.invoiceStatus = 2;
+            if (options.uninvoiced)
+                filter.invoiceStatus = 0;
             const params = {
-                maxResultCount: parseInt(options.size),
-                skipCount: (parseInt(options.page) - 1) * parseInt(options.size),
-                Filter: filter,
+                pageIndex: parseInt(options.page),
+                pageSize: parseInt(options.size),
+                filter,
             };
-            const response = await client.post('/api/crm/FinanceInvoice/getList', params, { traceId });
-            const parseResult = SearchInvoicesResponseSchema.safeParse(response);
+            const response = await client.post('/api/crm/Receive/getList', params, { traceId });
+            const parseResult = SearchResponseSchema.safeParse(response);
             const validated = parseResult.success
                 ? parseResult.data
-                : { totalCount: Array.isArray(response?.items) ? response.items.length : 0, items: Array.isArray(response?.items) ? response.items : [] };
+                : {
+                    totalCount: Array.isArray(response?.items) ? response.items.length : 0,
+                    items: Array.isArray(response?.items) ? response.items : [],
+                };
             if (options.json || globalOpts.json) {
                 console.log(formatter_1.formatter.formatJson(validated));
             }
             else {
                 const output = formatter_1.formatter.format(validated.items, {
                     format: 'table',
-                    fields: ['id', 'code', 'customName', 'invoiceAmount', 'invoiceDate', 'invoicer'],
+                    fields: ['id', 'customName', 'contractCode', 'collectionCycle', 'invoiceAmount', 'unInvoiceAmount', 'invoiceDate'],
                     headers: {
                         id: 'ID',
-                        code: 'Invoice No',
                         customName: 'Customer',
-                        invoiceAmount: 'Amount',
+                        contractCode: 'Contract',
+                        collectionCycle: 'Cycle',
+                        invoiceAmount: 'Invoiced',
+                        unInvoiceAmount: 'Remaining',
                         invoiceDate: 'Invoice Date',
-                        invoicer: 'Invoicer',
                     },
                 });
-                console.log(`Found ${validated.totalCount} invoice records\n`);
+                console.log(`Found ${validated.totalCount} receivable items\n`);
                 console.log(output);
             }
         }

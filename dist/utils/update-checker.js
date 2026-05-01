@@ -115,19 +115,20 @@ function saveCache(cache) {
     }
 }
 /**
- * Fetch latest version from GitHub Tags API (public releases repo)
+ * Fetch latest version from GitHub Releases API (public releases repo).
+ * Uses /releases/latest which returns the most recently published release.
  */
 async function fetchLatestVersion() {
     try {
-        const response = await axios_1.default.get('https://api.github.com/repos/stevendingliujian-collab/otd-crm-cli-releases/tags?per_page=1', {
+        const response = await axios_1.default.get('https://api.github.com/repos/stevendingliujian-collab/otd-crm-cli-releases/releases/latest', {
             timeout: 5000,
             headers: {
                 'User-Agent': 'crm-cli-update-checker',
                 'Accept': 'application/vnd.github.v3+json',
             },
         });
-        if (response.data && response.data.length > 0) {
-            return response.data[0].name.replace(/^v/, '');
+        if (response.data && response.data.tag_name) {
+            return response.data.tag_name.replace(/^v/, '');
         }
     }
     catch (error) {
@@ -155,16 +156,16 @@ function compareVersions(v1, v2) {
  * Show update notification
  */
 function showUpdateNotification(current, latest) {
-    const message = `
-╔════════════════════════════════════════════════════════╗
-║  📦 New version available!                             ║
-║                                                        ║
-║     Current:  ${current}                                        ║
-║     Latest:   ${latest}                                        ║
-║                                                        ║
-║     Run 'crm update' to upgrade.                      ║
-╚════════════════════════════════════════════════════════╝
-`.replace(/  +/g, ' '); // Normalize spaces
+    const message = [
+        '',
+        '╔══════════════════════════════════════════════════════════╗',
+        '║  📦 New version available!                               ║',
+        `║     Current:  v${current.padEnd(10)}  →  Latest: v${latest.padEnd(10)}  ║`,
+        '║                                                          ║',
+        '║     Run: crm update                                      ║',
+        '╚══════════════════════════════════════════════════════════╝',
+        '',
+    ].join('\n');
     // Print to stderr so it doesn't interfere with JSON output
     console.error(message);
 }

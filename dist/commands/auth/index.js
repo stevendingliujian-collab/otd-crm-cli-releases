@@ -8,6 +8,7 @@ const login_1 = require("./login");
 const logout_1 = require("./logout");
 const whoami_1 = require("./whoami");
 const device_1 = require("./device");
+const register_1 = require("./register");
 function authCommands(program) {
     const auth = program
         .command('auth')
@@ -16,5 +17,6 @@ function authCommands(program) {
     (0, logout_1.logoutCommand)(auth);
     (0, whoami_1.whoamiCommand)(auth);
     (0, device_1.deviceLoginCommand)(auth);
+    (0, register_1.registerCommand)(auth);
 }
 //# sourceMappingURL=index.js.map

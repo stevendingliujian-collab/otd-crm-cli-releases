@@ -95,6 +95,12 @@ async function handleDeviceLogin(options) {
     const tokenData = await pollForToken(apiUrl, deviceCodeData.device_code, deviceCodeData.interval, deviceCodeData.expires_in, options.json);
     // Step 4: Save token
     await auth_manager_1.authManager.setToken(options.profile, tokenData.access_token);
+    // Step 4b: Save user info to config (mirrors login.ts behaviour)
+    if (tokenData.user_id) {
+        await config_manager_1.configManager.set('user_id', tokenData.user_id, options.profile);
+    }
+    // Always overwrite user_name so stale values from a previous user are cleared
+    await config_manager_1.configManager.set('user_name', tokenData.user_name || tokenData.user_id || '', options.profile);
     // Step 5: Display success message
     if (options.json) {
         console.log(JSON.stringify({
