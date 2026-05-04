@@ -12,6 +12,10 @@ tags: [crm, sales, health-check]
 - 检查 XX 商机
 - 分析 XX 商机
 - 商机风险评估
+- XX 商机有戏吗
+- XX 商机怎么样了
+- XX 商机能成吗
+- XX 这个单子有希望吗
 
 ## 参数
 - `keyword`：商机名称关键词（必填）；或直接提供 `id`
