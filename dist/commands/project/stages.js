@@ -1,0 +1,128 @@
+"use strict";
+/**
+ * Project stages command
+ * List all available project stages, statuses, and types from data dictionary
+ *
+ * 字典编码：
+ *   ProjectType       项目类型（存 id）
+ *   MarketingProject  项目状态（存 id）
+ *   ProjectStage      项目阶段（存 code + name）
+ */
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.stagesCommand = stagesCommand;
+const http_client_1 = require("../../core/client/http-client");
+const formatter_1 = require("../../core/output/formatter");
+const error_handler_1 = require("../../core/errors/error-handler");
+const audit_logger_1 = require("../../core/audit/audit-logger");
+const zod_1 = require("zod");
+// Schema for data dictionary detail (stage/status)
+const StageSchema = zod_1.z.object({
+    id: zod_1.z.string(),
+    code: zod_1.z.string().nullable().optional(),
+    displayText: zod_1.z.string().nullable().optional(),
+    order: zod_1.z.number().nullable().optional(),
+    description: zod_1.z.string().nullable().optional(),
+    isEnabled: zod_1.z.boolean().nullable().optional(),
+}).passthrough();
+const StagesResponseSchema = zod_1.z.array(StageSchema);
+function stagesCommand(project) {
+    project
+        .command('stages')
+        .description('List available project stages/statuses/types (查看项目字典)')
+        .option('--code <code>', 'Dictionary code (default: ProjectStage)', 'ProjectStage')
+        .addHelpText('after', `
+字典编码 (--code):
+  ProjectStage      - 项目阶段 (default, 存 code + name)
+  MarketingProject  - 项目状态 (存 id)
+  ProjectType       - 项目类型 (存 id)
+
+Examples:
+  # List project stages
+  $ crm project stages
+
+  # List project statuses
+  $ crm project stages --code MarketingProject
+
+  # List project types
+  $ crm project stages --code ProjectType
+`)
+        .action(async (options, command) => {
+        const traceId = audit_logger_1.auditLogger.generateTraceId();
+        try {
+            const globalOpts = command.optsWithGlobals();
+            const profile = globalOpts.profile || 'default';
+            // Make API request
+            const client = (0, http_client_1.createClient)(profile);
+            const response = await client.get('/api/crm/project/getProjectStatussByCode', {
+                params: { code: options.code },
+                traceId,
+            });
+            // Validate response
+            const validated = StagesResponseSchema.parse(response);
+            // Transform to simpler format
+            const stages = validated
+                .map(stage => ({
+                id: stage.id,
+                code: stage.code || '',
+                name: stage.displayText || '',
+                order: stage.order || 0,
+                enabled: stage.isEnabled !== false ? '✓' : '✗',
+            }))
+                .sort((a, b) => a.order - b.order);
+            // Log audit
+            await audit_logger_1.auditLogger.log({
+                trace_id: traceId,
+                operator: 'current_user',
+                action: 'project.stages',
+                resource_type: 'project',
+                resource_id: 'N/A',
+                meta: {
+                    profile,
+                    api_url: await client['axiosInstance'].defaults.baseURL || '',
+                },
+            });
+            // Output
+            if (globalOpts.json) {
+                console.log(JSON.stringify(stages, null, 2));
+            }
+            else {
+                const output = formatter_1.formatter.format(stages, {
+                    format: 'table',
+                    fields: ['order', 'name', 'code', 'id', 'enabled'],
+                    headers: {
+                        order: 'Order',
+                        name: 'Name',
+                        code: 'Code',
+                        id: 'ID',
+                        enabled: 'Enabled',
+                    },
+                });
+                console.log(output);
+                console.log(`\nTotal: ${stages.length} items (dictionary: ${options.code})`);
+            }
+        }
+        catch (error) {
+            const cliError = error_handler_1.errorHandler.handle(error);
+            if (command.optsWithGlobals().json) {
+                console.error(JSON.stringify({
+                    error: {
+                        code: cliError.code,
+                        message: cliError.message,
+                        hint: cliError.hint,
+                        trace_id: traceId,
+                    },
+                }, null, 2));
+            }
+            else {
+                formatter_1.formatter.error(`Error: ${cliError.code}`);
+                console.error(`   ${cliError.message}`);
+                if (cliError.hint) {
+                    console.error(`\n💡 Hint: ${cliError.hint}`);
+                }
+                console.error(`\n🔍 Trace ID: ${traceId}`);
+            }
+            process.exit(1);
+        }
+    });
+}
+//# sourceMappingURL=stages.js.map

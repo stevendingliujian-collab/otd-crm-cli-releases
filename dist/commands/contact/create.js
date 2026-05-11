@@ -1,6 +1,11 @@
 "use strict";
 /**
  * Contact create command
+ *
+ * IMPORTANT: Always send customName alongside customId.
+ * The backend does NOT auto-populate names from IDs. A null customName
+ * causes the associated customer to not display correctly on the contact.
+ * If the caller omits --customer-name, this command auto-fetches it.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCommand = createCommand;
@@ -15,6 +20,7 @@ function createCommand(contact) {
         .description('Create a new contact')
         .requiredOption('-n, --name <name>', 'Contact name')
         .option('-c, --customer-id <customerId>', 'Customer ID')
+        .option('--customer-name <name>', 'Customer name (auto-fetched if --customer-id provided and this is omitted)')
         .option('-p, --phone <phone>', 'Phone number')
         .option('-e, --email <email>', 'Email address')
         .option('--position <position>', 'Job position')
@@ -26,12 +32,31 @@ function createCommand(contact) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
+            const client = (0, http_client_1.createClient)(profile);
+            // ── Auto-resolve customer name if customerId provided but name omitted ─
+            let customerName = options.customerName;
+            if (options.customerId && !customerName) {
+                try {
+                    if (!globalOpts.json)
+                        formatter_1.formatter.info('Fetching customer name...');
+                    const customer = await client.get('/api/crm/custom/getCustomById', {
+                        params: { id: options.customerId },
+                        traceId,
+                    });
+                    customerName = customer?.name;
+                }
+                catch {
+                    // Non-fatal
+                }
+            }
             // Build request body
             const requestBody = {
                 name: options.name,
             };
             if (options.customerId)
                 requestBody.customId = options.customerId;
+            if (customerName)
+                requestBody.customName = customerName;
             if (options.phone)
                 requestBody.phone = options.phone;
             if (options.email)
@@ -45,7 +70,6 @@ function createCommand(contact) {
             if (options.remark)
                 requestBody.remark = options.remark;
             // Make API request
-            const client = (0, http_client_1.createClient)(profile);
             const response = await client.post('/api/crm/contact/create', requestBody, {
                 traceId,
             });

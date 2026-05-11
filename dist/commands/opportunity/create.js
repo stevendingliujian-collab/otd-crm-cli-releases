@@ -1,6 +1,11 @@
 "use strict";
 /**
  * Opportunity create command
+ *
+ * IMPORTANT: Always send customName and companyName alongside their IDs.
+ * The backend does NOT auto-populate names from IDs, and the frontend
+ * detail page will render blank if these name fields are null.
+ * If the caller omits --customer-name, this command auto-fetches it.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCommand = createCommand;
@@ -33,6 +38,28 @@ function createCommand(opportunity) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
+            const client = (0, http_client_1.createClient)(profile);
+            // ── Auto-resolve customer name if not provided ────────────────────────
+            // The backend does NOT derive customName from customId — it must be sent
+            // explicitly. A null customName causes the frontend detail page to render blank.
+            let customerName = options.customerName;
+            if (!customerName) {
+                try {
+                    if (!globalOpts.json)
+                        formatter_1.formatter.info('Fetching customer name...');
+                    const customer = await client.get('/api/crm/custom/getCustomById', {
+                        params: { id: options.customerId },
+                        traceId,
+                    });
+                    customerName = customer?.name;
+                }
+                catch {
+                    // Non-fatal: proceed without name (will warn below)
+                }
+                if (!customerName) {
+                    formatter_1.formatter.info('Warning: could not resolve customer name — pass --customer-name to avoid this.');
+                }
+            }
             // Build request body
             const body = {
                 name: options.name,
@@ -40,9 +67,9 @@ function createCommand(opportunity) {
                 companyId: options.companyId,
                 isAgent: false,
             };
-            // Optional fields
-            if (options.customerName)
-                body.customName = options.customerName;
+            // Always include names alongside IDs so the frontend can render correctly
+            if (customerName)
+                body.customName = customerName;
             if (options.companyName)
                 body.companyName = options.companyName;
             if (options.ownerId)
@@ -66,7 +93,6 @@ function createCommand(opportunity) {
             if (options.description)
                 body.description = options.description;
             // Make API request
-            const client = (0, http_client_1.createClient)(profile);
             const response = await client.post('/api/crm/business/create', body, {
                 traceId,
             });

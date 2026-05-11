@@ -1,6 +1,11 @@
 "use strict";
 /**
  * Contract create command
+ *
+ * IMPORTANT: Always send customName alongside customId.
+ * The backend does NOT auto-populate names from IDs, and the frontend
+ * detail page will render blank if customName is null.
+ * If the caller omits --customer-name, this command auto-fetches it.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCommand = createCommand;
@@ -16,6 +21,7 @@ function createCommand(contract) {
         .requiredOption('-n, --name <name>', 'Contract name')
         .requiredOption('-c, --customer-id <customerId>', 'Customer ID')
         .requiredOption('-a, --amount <amount>', 'Contract amount')
+        .option('--customer-name <name>', 'Customer name (auto-fetched if omitted)')
         .option('--signed-date <signedDate>', 'Signed date (YYYY-MM-DD)')
         .option('--status <status>', 'Contract status (number)')
         .option('--code <code>', 'Contract code')
@@ -24,12 +30,36 @@ function createCommand(contract) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
+            const client = (0, http_client_1.createClient)(profile);
+            // ── Auto-resolve customer name if not provided ────────────────────────
+            // The backend does NOT derive customName from customId — it must be sent
+            // explicitly. A null customName causes the frontend detail page to render blank.
+            let customerName = options.customerName;
+            if (!customerName) {
+                try {
+                    if (!globalOpts.json)
+                        formatter_1.formatter.info('Fetching customer name...');
+                    const customer = await client.get('/api/crm/custom/getCustomById', {
+                        params: { id: options.customerId },
+                        traceId,
+                    });
+                    customerName = customer?.name;
+                }
+                catch {
+                    // Non-fatal: proceed without name
+                }
+                if (!customerName) {
+                    formatter_1.formatter.info('Warning: could not resolve customer name — pass --customer-name to avoid this.');
+                }
+            }
             // Build request body
             const requestBody = {
                 name: options.name,
                 customId: options.customerId,
                 amount: parseFloat(options.amount),
             };
+            if (customerName)
+                requestBody.customName = customerName;
             if (options.signedDate)
                 requestBody.signedDate = options.signedDate;
             if (options.status)
@@ -37,7 +67,6 @@ function createCommand(contract) {
             if (options.code)
                 requestBody.code = options.code;
             // Make API request
-            const client = (0, http_client_1.createClient)(profile);
             const response = await client.post('/api/crm/contract/create', requestBody, {
                 traceId,
             });

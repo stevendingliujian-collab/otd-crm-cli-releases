@@ -30,6 +30,7 @@ crm auth whoami   # 应输出当前登录用户
 | `crm clue` | search / get / create / update / convert | 线索 |
 | `crm opportunity` | search / get / create / update / assign / stage / stages | 商机 |
 | `crm contract` | search / get / create / update / statuses | 合同 |
+| `crm project` | search / get / create / update / delete / stages / companies | 项目 |
 | `crm followup` | search / get / create / update | 跟进记录 |
 | `crm task` | search / get / create / update / assign / comment / statuses | 任务 |
 | `crm contact` | search / get / create / update | 联系人 |
@@ -68,6 +69,21 @@ crm followup search --opportunity-id <opp_id> --json         # 按商机
 crm followup search --customer-id <customer_id> --json       # 按客户
 ```
 
+### 搜索项目
+```bash
+crm project search --json
+crm project search --keyword 项目名 --json
+crm project search --customer-name 客户名 --json
+crm project search --stage-code 实施 --json
+crm project search --maintenance-expire-start 2026-01-01 --maintenance-expire-end 2026-12-31 --json
+crm project search --owner 张三 --json
+```
+
+### 获取项目详情
+```bash
+crm project get <project_id> --json
+```
+
 ### 获取详情
 ```bash
 crm customer get <customer_id> --json
@@ -87,12 +103,30 @@ crm followup create \
   --content "跟进内容描述" \
   --json
 ```
-> `--related-type`：0=商机，1=客户，2=联系人
+> `--related-type`：0=商机，1=客户，2=联系人，4=项目，5=线索，6=合同，7=应收款
 
 ### 创建线索
 ```bash
 crm clue create --name "线索名称" --contact 张三 --phone 13800000000 --json
 ```
+
+### 创建项目
+```bash
+crm project create \
+  --name "项目名称" \
+  --company-id <company_id> \
+  --project-type "项目类型名称或ID" \
+  --customer-id <customer_id> \
+  --contract-id <contract_id> \
+  --stage "需求" \
+  --maintenance-expire 2027-12-31 \
+  --json
+```
+> 必填：`--name`、`--company-id`、`--project-type`
+> `--project-type`：传 id / code / 名称均可，自动转换
+> `--stage`：传 id / code / 名称均可，自动转换为 code + name
+> `--code` 不传则后端自动生成
+> `--company-name`、`--customer-name`、`--contract-name` 不传则自动查询补齐
 
 ### 创建任务
 ```bash
@@ -106,6 +140,23 @@ crm task create --title "任务标题" --related-id <opp_id> --related-type oppo
 crm opportunity update <opp_id> --stage 谈判 --yes --json
 crm opportunity update <opp_id> --amount 500000 --yes --json
 ```
+
+### 更新项目
+```bash
+# 更新项目阶段（传 id/code/名称均可）
+crm project update <project_id> --stage "实施中" --json
+
+# 更新运维到期时间
+crm project update <project_id> --maintenance-expire 2027-12-31 --json
+
+# 更新项目状态
+crm project update <project_id> --project-status "进行中" --json
+
+# 更新多个字段
+crm project update <project_id> --stage "验收" --real-online-date 2026-06-01 --json
+```
+> 更新前自动查询现有数据，仅覆盖指定字段
+> 合同、客户、公司关联不允许通过 update 修改
 
 ### 更新客户
 ```bash
