@@ -9,12 +9,15 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const customer_1 = require("../../schemas/resources/customer");
+const sales_region_1 = require("./sales-region");
 function createCommand(customer) {
     customer
         .command('create')
         .description('Create a new customer')
         .requiredOption('--name <name>', 'Customer name')
         .option('--code <code>', 'Customer code (auto-generated if not provided)')
+        .option('--sales-region <region>', 'Sales region (销售区域，仅北京广元科技租户使用)')
+        .option('--country <country>', 'Country')
         .option('--province <province>', 'Province')
         .option('--city <city>', 'City')
         .option('--district <district>', 'District')
@@ -44,6 +47,10 @@ function createCommand(customer) {
             // Optional fields
             if (options.code)
                 body.code = options.code;
+            if (options.salesRegion)
+                body.salesRegion = (0, sales_region_1.validateCustomerSalesRegion)(options.salesRegion);
+            if (options.country)
+                body.country = options.country;
             if (options.province)
                 body.province = options.province;
             if (options.city)

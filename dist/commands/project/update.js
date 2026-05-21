@@ -152,14 +152,34 @@ Note:
             if (options.estimatedMemoTime)
                 requestBody.estimatedMemoTime = options.estimatedMemoTime;
             // 人员字段
-            if (options.ownerId)
-                requestBody.ownerId = options.ownerId;
-            if (options.owner)
-                requestBody.owner = options.owner;
-            if (options.projectManagerId)
-                requestBody.projectManagerId = options.projectManagerId;
-            if (options.projectManager)
-                requestBody.projectManager = options.projectManager;
+            let ownerId = options.ownerId;
+            let ownerName = options.owner;
+            if (ownerId && !ownerName) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, ownerId, traceId);
+                ownerName = resolved.name;
+            }
+            else if (ownerName && !ownerId) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, ownerName, traceId);
+                ownerId = resolved.id;
+            }
+            let projectManagerId = options.projectManagerId;
+            let projectManagerName = options.projectManager;
+            if (projectManagerId && !projectManagerName) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, projectManagerId, traceId);
+                projectManagerName = resolved.name;
+            }
+            else if (projectManagerName && !projectManagerId) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, projectManagerName, traceId);
+                projectManagerId = resolved.id;
+            }
+            if (ownerId)
+                requestBody.ownerId = ownerId;
+            if (ownerName)
+                requestBody.owner = ownerName;
+            if (projectManagerId)
+                requestBody.projectManagerId = projectManagerId;
+            if (projectManagerName)
+                requestBody.projectManager = projectManagerName;
             // 工时字段
             if (options.planSpendDay !== undefined)
                 requestBody.planSpendDay = options.planSpendDay;

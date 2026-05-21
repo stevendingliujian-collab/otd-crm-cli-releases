@@ -11,6 +11,20 @@ const cli_error_1 = require("../../core/errors/cli-error");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const customer_1 = require("../../schemas/resources/customer");
 const error_codes_1 = require("../../constants/error-codes");
+const sales_region_1 = require("./sales-region");
+const payload_1 = require("./payload");
+const UPDATE_FIELDS = [
+    'name',
+    'industry',
+    'level',
+    'address',
+    'description',
+    'salesRegion',
+    'country',
+    'province',
+    'city',
+    'district',
+];
 function updateCommand(customer) {
     customer
         .command('update <id>')
@@ -20,6 +34,11 @@ function updateCommand(customer) {
         .option('--level <text>', 'Customer level (A/B/C/D)')
         .option('--address <text>', 'Detailed address')
         .option('--description <text>', 'Customer description')
+        .option('--sales-region <region>', 'Sales region (销售区域，仅北京广元科技租户使用)')
+        .option('--country <text>', 'Country')
+        .option('--province <text>', 'Province')
+        .option('--city <text>', 'City')
+        .option('--district <text>', 'District')
         .option('-y, --yes', 'Skip confirmation prompt')
         .option('--json', 'Output as JSON')
         .option('-v, --verbose', 'Show verbose output')
@@ -29,8 +48,8 @@ function updateCommand(customer) {
         try {
             const profile = globalOpts.profile || 'default';
             // Validate at least one field is provided
-            if (!options.name && !options.industry && !options.level && !options.address && !options.description) {
-                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --name, --industry, --level, --address, --description');
+            if (!UPDATE_FIELDS.some(field => options[field] !== undefined)) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --name, --industry, --level, --address, --description, --sales-region, --country, --province, --city, --district');
             }
             const client = (0, http_client_1.createClient)(profile);
             // Step 1: Get current customer data
@@ -41,50 +60,23 @@ function updateCommand(customer) {
             const currentData = customer_1.CustomerSchema.parse(current);
             // Step 2: Build update payload (merge with current data)
             // Note: ID is in URL query, not in body
-            const body = {
-                name: options.name || currentData.name,
-                code: currentData.code,
-                type: currentData.type ?? 0,
+            const overrides = {
+                name: options.name,
+                industry: options.industry,
+                level: options.level,
+                address: options.address,
+                description: options.description,
+                salesRegion: options.salesRegion !== undefined
+                    ? (0, sales_region_1.validateCustomerSalesRegion)(options.salesRegion)
+                    : undefined,
+                country: options.country,
+                province: options.province,
+                city: options.city,
+                district: options.district,
             };
-            // Preserve existing fields
-            if (currentData.ownerId)
-                body.ownerId = currentData.ownerId;
-            if (currentData.owner)
-                body.owner = currentData.owner;
-            // Update fields
-            if (options.industry) {
-                body.industry = options.industry;
-            }
-            else if (currentData.industry) {
-                body.industry = currentData.industry;
-            }
-            if (options.level) {
-                body.level = options.level;
-            }
-            else if (currentData.level) {
-                body.level = currentData.level;
-            }
-            if (options.address) {
-                body.address = options.address;
-            }
-            else if (currentData.address) {
-                body.address = currentData.address;
-            }
-            if (options.description) {
-                body.description = options.description;
-            }
-            else if (currentData.description) {
-                body.description = currentData.description;
-            }
-            // Preserve other common fields
-            if (currentData.phone)
-                body.phone = currentData.phone;
-            if (currentData.email)
-                body.email = currentData.email;
-            if (currentData.contactName)
-                body.contactName = currentData.contactName;
+            const body = (0, payload_1.buildCustomerUpdateBody)(currentData, overrides);
             // Step 3: Confirmation prompt (unless --yes)
-            if (!options.yes) {
+            if (!options.yes && !globalOpts.yes) {
                 const changes = [];
                 if (options.name)
                     changes.push(`name → ${options.name}`);
@@ -96,6 +88,16 @@ function updateCommand(customer) {
                     changes.push(`address updated`);
                 if (options.description)
                     changes.push(`description updated`);
+                if (options.salesRegion !== undefined)
+                    changes.push(`salesRegion → ${options.salesRegion}`);
+                if (options.country !== undefined)
+                    changes.push(`country → ${options.country}`);
+                if (options.province !== undefined)
+                    changes.push(`province → ${options.province}`);
+                if (options.city !== undefined)
+                    changes.push(`city → ${options.city}`);
+                if (options.district !== undefined)
+                    changes.push(`district → ${options.district}`);
                 formatter_1.formatter.info(`Will update customer "${currentData.name}"`);
                 formatter_1.formatter.info(`Changes: ${changes.join(', ')}`);
                 formatter_1.formatter.warn('Use --yes to skip this prompt');
@@ -127,7 +129,7 @@ function updateCommand(customer) {
                     api_url: client['axiosInstance'].defaults.baseURL || '',
                 },
                 changes: {
-                    fields_updated: Object.keys(options).filter(k => k !== 'yes' && k !== 'json' && k !== 'verbose'),
+                    fields_updated: UPDATE_FIELDS.filter(field => options[field] !== undefined),
                 },
             });
             // Step 6: Output

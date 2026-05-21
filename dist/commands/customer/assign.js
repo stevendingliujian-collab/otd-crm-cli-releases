@@ -12,11 +12,11 @@ const audit_logger_1 = require("../../core/audit/audit-logger");
 const customer_1 = require("../../schemas/resources/customer");
 const error_codes_1 = require("../../constants/error-codes");
 const user_search_1 = require("../../utils/user-search");
+const payload_1 = require("./payload");
 function assignCommand(customer) {
     customer
         .command('assign <id>')
         .description('Assign customer to a new owner')
-        .argument('<id>', 'Customer ID (UUID)')
         .requiredOption('--owner <name>', 'New owner name (fuzzy search)')
         .option('--owner-id <id>', 'New owner ID (UUID) - use if name search returns multiple matches')
         .option('-y, --yes', 'Skip confirmation prompt')
@@ -61,7 +61,6 @@ function assignCommand(customer) {
                                     index: idx + 1,
                                     id: u.id,
                                     name: u.name,
-                                    department: u.departmentName || '-',
                                     email: u.email || '-',
                                 })),
                                 hint: `Use: crm customer assign ${id} --owner-id <id>`,
@@ -74,8 +73,6 @@ function assignCommand(customer) {
                         console.log('');
                         users.forEach((u, idx) => {
                             console.log(`  ${idx + 1}. ${u.name} (ID: ${u.id})`);
-                            if (u.departmentName)
-                                console.log(`     Department: ${u.departmentName}`);
                             if (u.email)
                                 console.log(`     Email: ${u.email}`);
                         });
@@ -95,10 +92,10 @@ function assignCommand(customer) {
             if (options.verbose) {
                 formatter_1.formatter.info(`Fetching customer ${id}...`);
             }
-            const current = await client.get(`/api/crm/custom/get?id=${id}`, { traceId });
+            const current = await client.get('/api/crm/custom/getCustomById', { params: { id }, traceId });
             const currentData = customer_1.CustomerSchema.parse(current);
             // Step 3: Confirmation prompt (unless --yes)
-            if (!options.yes) {
+            if (!options.yes && !globalOpts.yes) {
                 formatter_1.formatter.info(`Will assign customer "${currentData.name}" to ${ownerName}`);
                 if (currentData.owner) {
                     formatter_1.formatter.info(`Current owner: ${currentData.owner}`);
@@ -109,30 +106,11 @@ function assignCommand(customer) {
             if (options.verbose) {
                 formatter_1.formatter.info('Sending assignment request...');
             }
-            const body = {
-                id: currentData.id,
-                name: currentData.name,
-                code: currentData.code,
-                type: currentData.type ?? 0,
-                ownerId: ownerId,
+            const body = (0, payload_1.buildCustomerUpdateBody)(currentData, {
+                ownerId,
                 owner: ownerName,
-            };
-            // Preserve existing fields
-            if (currentData.industry)
-                body.industry = currentData.industry;
-            if (currentData.level)
-                body.level = currentData.level;
-            if (currentData.address)
-                body.address = currentData.address;
-            if (currentData.description)
-                body.description = currentData.description;
-            if (currentData.phone)
-                body.phone = currentData.phone;
-            if (currentData.email)
-                body.email = currentData.email;
-            if (currentData.contactName)
-                body.contactName = currentData.contactName;
-            const response = await client.post('/api/crm/custom/update', body, { traceId });
+            });
+            const response = await client.post(`/api/crm/custom/update?id=${id}`, body, { traceId });
             const updated = customer_1.CustomerSchema.parse(response);
             // Step 5: Log audit
             await audit_logger_1.auditLogger.log({

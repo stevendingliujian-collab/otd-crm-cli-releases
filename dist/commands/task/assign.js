@@ -61,7 +61,6 @@ function assignCommand(task) {
                                     index: idx + 1,
                                     id: u.id,
                                     name: u.name,
-                                    department: u.departmentName || '-',
                                     email: u.email || '-',
                                 })),
                                 hint: `Use: crm task assign ${id} --owner-id <id>`,
@@ -74,8 +73,6 @@ function assignCommand(task) {
                         console.log('');
                         users.forEach((u, idx) => {
                             console.log(`  ${idx + 1}. ${u.name} (ID: ${u.id})`);
-                            if (u.departmentName)
-                                console.log(`     Department: ${u.departmentName}`);
                             if (u.email)
                                 console.log(`     Email: ${u.email}`);
                         });

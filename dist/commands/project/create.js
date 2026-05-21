@@ -137,6 +137,27 @@ function createCommand(project) {
                     formatter_1.formatter.warn('Warning: 无法查询合同名称，请传 --contract-name');
                 }
             }
+            // ── 自动补齐负责人/项目经理 ────────────────────────────────────
+            let ownerId = options.ownerId;
+            let ownerName = options.owner;
+            if (ownerId && !ownerName) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, ownerId, traceId);
+                ownerName = resolved.name;
+            }
+            else if (ownerName && !ownerId) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, ownerName, traceId);
+                ownerId = resolved.id;
+            }
+            let projectManagerId = options.projectManagerId;
+            let projectManagerName = options.projectManager;
+            if (projectManagerId && !projectManagerName) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, projectManagerId, traceId);
+                projectManagerName = resolved.name;
+            }
+            else if (projectManagerName && !projectManagerId) {
+                const resolved = await (0, helpers_1.resolveUserRef)(client, projectManagerName, traceId);
+                projectManagerId = resolved.id;
+            }
             // ── 构建请求体 ──────────────────────────────────────────────────
             const requestBody = {
                 name: options.name,
@@ -175,14 +196,14 @@ function createCommand(project) {
                 requestBody.confirmDate = options.confirmDate;
             if (options.maintenanceExpire)
                 requestBody.maintenanceExpire = options.maintenanceExpire;
-            if (options.ownerId)
-                requestBody.ownerId = options.ownerId;
-            if (options.owner)
-                requestBody.owner = options.owner;
-            if (options.projectManagerId)
-                requestBody.projectManagerId = options.projectManagerId;
-            if (options.projectManager)
-                requestBody.projectManager = options.projectManager;
+            if (ownerId)
+                requestBody.ownerId = ownerId;
+            if (ownerName)
+                requestBody.owner = ownerName;
+            if (projectManagerId)
+                requestBody.projectManagerId = projectManagerId;
+            if (projectManagerName)
+                requestBody.projectManager = projectManagerName;
             if (options.planSpendDay !== undefined)
                 requestBody.planSpendDay = options.planSpendDay;
             if (options.salesRegion)

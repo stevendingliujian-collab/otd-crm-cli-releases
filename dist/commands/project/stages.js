@@ -14,17 +14,7 @@ const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
-const zod_1 = require("zod");
-// Schema for data dictionary detail (stage/status)
-const StageSchema = zod_1.z.object({
-    id: zod_1.z.string(),
-    code: zod_1.z.string().nullable().optional(),
-    displayText: zod_1.z.string().nullable().optional(),
-    order: zod_1.z.number().nullable().optional(),
-    description: zod_1.z.string().nullable().optional(),
-    isEnabled: zod_1.z.boolean().nullable().optional(),
-}).passthrough();
-const StagesResponseSchema = zod_1.z.array(StageSchema);
+const dictionary_1 = require("../../utils/dictionary");
 function stagesCommand(project) {
     project
         .command('stages')
@@ -51,24 +41,8 @@ Examples:
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            // Make API request
             const client = (0, http_client_1.createClient)(profile);
-            const response = await client.get('/api/crm/project/getProjectStatussByCode', {
-                params: { code: options.code },
-                traceId,
-            });
-            // Validate response
-            const validated = StagesResponseSchema.parse(response);
-            // Transform to simpler format
-            const stages = validated
-                .map(stage => ({
-                id: stage.id,
-                code: stage.code || '',
-                name: stage.displayText || '',
-                order: stage.order || 0,
-                enabled: stage.isEnabled !== false ? '✓' : '✗',
-            }))
-                .sort((a, b) => a.order - b.order);
+            const stages = (0, dictionary_1.formatDictItems)(await (0, dictionary_1.fetchDictItems)(client, options.code, traceId));
             // Log audit
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
