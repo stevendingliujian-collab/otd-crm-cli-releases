@@ -31,6 +31,9 @@ crm auth whoami   # 应输出当前登录用户
 | `crm opportunity` | search / get / create / update / assign / stage / stages | 商机 |
 | `crm contract` | search / get / create / update / statuses | 合同 |
 | `crm project` | search / get / create / update / delete / stages / companies | 项目 |
+| `crm dict` | list | 通用数据字典查询 |
+| `crm user` | search / get | 通用人员查询 |
+| `crm company` | list / search | 通用公司查询 |
 | `crm followup` | search / get / create / update | 跟进记录 |
 | `crm task` | search / get / create / update / assign / comment / statuses | 任务 |
 | `crm contact` | search / get / create / update | 联系人 |
@@ -82,6 +85,17 @@ crm project search --owner 张三 --json
 ### 获取项目详情
 ```bash
 crm project get <project_id> --json
+```
+
+### 查询通用基础资料
+```bash
+crm dict list --code ProjectStage --json           # 查询任意数据字典
+crm dict list --code ProjectType --json            # 项目类型
+crm dict list --code MarketingProject --json       # 项目状态
+crm user search --keyword 张三 --json              # 查询人员
+crm user get <user_id> --json                      # 查询人员详情
+crm company list --json                            # 公司列表
+crm company search --keyword 北京 --json           # 搜索公司
 ```
 
 ### 获取详情
@@ -161,7 +175,11 @@ crm project update <project_id> --stage "验收" --real-online-date 2026-06-01 -
 ### 更新客户
 ```bash
 crm customer update <customer_id> --industry 制造业 --yes --json
+crm customer update <customer_id> --country 中国 --province 江苏省 --city 苏州市 --district 工业园区 --yes --json
+crm customer update <customer_id> --sales-region 华东区 --yes --json
 ```
+> `--sales-region` 只接受：华北区、华东区、华南区、华中区、西南区、西北区、东北区、港澳台区。
+> 客户更新会先查询现有数据，再按 full update 接口要求保留已有业务字段，只覆盖显式传入字段。
 
 ### 更新跟进
 ```bash

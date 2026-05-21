@@ -23,11 +23,12 @@
 
 查看可用字典值：
 ```bash
-crm project stages --json                          # 项目阶段
-crm project stages --code MarketingProject --json  # 项目状态
-crm project stages --code ProjectType --json       # 项目类型
-crm project companies --json                       # 公司列表
+crm dict list --code ProjectStage --json           # 项目阶段
+crm dict list --code MarketingProject --json       # 项目状态
+crm dict list --code ProjectType --json            # 项目类型
+crm company list --json                            # 公司列表
 ```
+> 兼容入口仍可用：`crm project stages --json`、`crm project companies --json`。
 
 ## 查询项目
 
@@ -226,10 +227,10 @@ crm customer search --keyword "XX" --json
 # 获取 customer_id
 
 # 2. 查询公司列表（获取 company_id）
-# 公司信息通常已知，或从合同/商机中获取
+crm company list --json
 
 # 3. 查看项目类型
-crm project stages --code ProjectType --json
+crm dict list --code ProjectType --json
 
 # 4. 创建项目
 crm project create \
