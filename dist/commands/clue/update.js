@@ -11,6 +11,48 @@ const cli_error_1 = require("../../core/errors/cli-error");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const clue_1 = require("../../schemas/resources/clue");
 const error_codes_1 = require("../../constants/error-codes");
+const CLUE_UPDATE_ALLOWLIST = [
+    'name',
+    'contactName',
+    'phone',
+    'status',
+    'description',
+    'ownerId',
+    'owner',
+    'companyId',
+    'email',
+    'industry',
+    'source',
+    'customName',
+    'telephone',
+    'clueSourceId',
+    'position',
+    'weChat',
+    'website',
+    'fixPhone',
+    'department',
+    'address',
+    'remark',
+];
+function buildClueUpdateBody(current, options, id) {
+    const body = { id };
+    for (const field of CLUE_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field] = current[field];
+        }
+    }
+    if (options.name !== undefined)
+        body.name = options.name;
+    if (options.contact !== undefined)
+        body.contactName = options.contact;
+    if (options.phone !== undefined)
+        body.phone = options.phone;
+    if (options.status !== undefined)
+        body.status = options.status;
+    if (options.description !== undefined)
+        body.description = options.description;
+    return body;
+}
 function updateCommand(clue) {
     clue
         .command('update <id>')
@@ -29,7 +71,11 @@ function updateCommand(clue) {
         try {
             const profile = globalOpts.profile || 'default';
             // Validate at least one field is provided
-            if (!options.name && !options.contact && !options.phone && !options.status && !options.description) {
+            if (options.name === undefined &&
+                options.contact === undefined &&
+                options.phone === undefined &&
+                options.status === undefined &&
+                options.description === undefined) {
                 throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --name, --contact, --phone, --status, --description');
             }
             const client = (0, http_client_1.createClient)(profile);
@@ -40,62 +86,20 @@ function updateCommand(clue) {
             const current = await client.get(`/api/crm/clue/get?id=${id}`, { traceId });
             const currentData = clue_1.ClueSchema.parse(current);
             // Step 2: Build update payload (merge with current data)
-            const body = {
-                id: currentData.id,
-                name: options.name || currentData.name,
-            };
-            // Preserve existing fields
-            if (currentData.ownerId)
-                body.ownerId = currentData.ownerId;
-            if (currentData.owner)
-                body.owner = currentData.owner;
-            if (currentData.companyId)
-                body.companyId = currentData.companyId;
-            // Update fields
-            if (options.contact) {
-                body.contactName = options.contact;
-            }
-            else if (currentData.contactName) {
-                body.contactName = currentData.contactName;
-            }
-            if (options.phone) {
-                body.phone = options.phone;
-            }
-            else if (currentData.phone) {
-                body.phone = currentData.phone;
-            }
-            if (options.status) {
-                body.status = options.status;
-            }
-            else if (currentData.status !== undefined) {
-                body.status = currentData.status;
-            }
-            if (options.description) {
-                body.description = options.description;
-            }
-            else if (currentData.description) {
-                body.description = currentData.description;
-            }
-            // Preserve other fields
-            if (currentData.email)
-                body.email = currentData.email;
-            if (currentData.industry)
-                body.industry = currentData.industry;
-            if (currentData.source)
-                body.source = currentData.source;
+            const body = buildClueUpdateBody(currentData, options, id);
             // Step 3: Confirmation prompt (unless --yes)
-            if (!options.yes) {
+            if (!options.yes && !globalOpts.yes) {
                 const changes = [];
-                if (options.name)
+                if (options.name !== undefined)
                     changes.push(`name → ${options.name}`);
-                if (options.contact)
+                if (options.contact !== undefined)
                     changes.push(`contact → ${options.contact}`);
-                if (options.phone)
+                if (options.phone !== undefined)
                     changes.push(`phone → ${options.phone}`);
-                if (options.status)
+                if (options.status !== undefined)
                     changes.push(`status → ${options.status}`);
-                if (options.description)
-                    changes.push(`description updated`);
+                if (options.description !== undefined)
+                    changes.push('description updated');
                 formatter_1.formatter.info(`Will update clue "${currentData.name}"`);
                 formatter_1.formatter.info(`Changes: ${changes.join(', ')}`);
                 formatter_1.formatter.warn('Use --yes to skip this prompt');

@@ -7,8 +7,41 @@ exports.updateCommand = updateCommand;
 const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
+const cli_error_1 = require("../../core/errors/cli-error");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const contract_1 = require("../../schemas/resources/contract");
+const error_codes_1 = require("../../constants/error-codes");
+const CONTRACT_UPDATE_ALLOWLIST = [
+    'name',
+    'amount',
+    'signedDate',
+    'status',
+    'code',
+    'customId',
+    'customName',
+    'ownerId',
+    'owner',
+    'isSigned',
+];
+function buildContractUpdateBody(current, options, id) {
+    const body = { id };
+    for (const field of CONTRACT_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field] = current[field];
+        }
+    }
+    if (options.name !== undefined)
+        body.name = options.name;
+    if (options.amount !== undefined)
+        body.amount = parseFloat(String(options.amount));
+    if (options.signedDate !== undefined)
+        body.signedDate = options.signedDate;
+    if (options.status !== undefined)
+        body.status = parseInt(String(options.status), 10);
+    if (options.code !== undefined)
+        body.code = options.code;
+    return body;
+}
 function updateCommand(contract) {
     contract
         .command('update')
@@ -24,22 +57,18 @@ function updateCommand(contract) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            // Build request body
-            const requestBody = {
-                id,
-            };
-            if (options.name)
-                requestBody.name = options.name;
-            if (options.amount)
-                requestBody.amount = parseFloat(options.amount);
-            if (options.signedDate)
-                requestBody.signedDate = options.signedDate;
-            if (options.status)
-                requestBody.status = parseInt(options.status, 10);
-            if (options.code)
-                requestBody.code = options.code;
-            // Make API request
+            const hasAnyField = ['name', 'amount', 'signedDate', 'status', 'code']
+                .some((field) => options[field] !== undefined);
+            if (!hasAnyField) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --name, --amount, --signed-date, --status, --code');
+            }
             const client = (0, http_client_1.createClient)(profile);
+            const current = await client.get('/api/crm/contract/getContractById', {
+                params: { id },
+                traceId,
+            });
+            const currentData = contract_1.ContractSchema.parse(current);
+            const requestBody = buildContractUpdateBody(currentData, options, id);
             const response = await client.post(`/api/crm/contract/update?id=${id}`, requestBody, {
                 traceId,
             });
@@ -67,7 +96,7 @@ function updateCommand(contract) {
                 console.log(`Name: ${validated.name}`);
                 if (validated.code)
                     console.log(`Code: ${validated.code}`);
-                if (validated.amount)
+                if (validated.amount !== undefined && validated.amount !== null)
                     console.log(`Amount: ${validated.amount}`);
                 if (validated.contractStatusName)
                     console.log(`Status: ${validated.contractStatusName}`);

@@ -20,6 +20,47 @@ const ReceiveDetailSchema = zod_1.z.object({
     receiveCode: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
+const RECEIVE_UPDATE_ALLOWLIST = [
+    'receiveId',
+    'actualPayAmount',
+    'actualPayDate',
+    'remark',
+    'receiveCode',
+    'invoiceCode',
+    'invoiceTypeId',
+    'invoiceType',
+    'isInvoice',
+    'financeInvoiceId',
+    'financeReceiveId',
+    'resourceFiles',
+];
+function normalizeReceiveDate(value) {
+    if (typeof value !== 'string')
+        return value;
+    return value.includes('T') ? value : new Date(`${value}T00:00:00.000Z`).toISOString();
+}
+function buildReceiveUpdateBody(current, options, id) {
+    const body = {
+        id: current.id ?? id,
+        detailType: 0,
+        invoiceDate: null,
+        invoiceAmount: null,
+    };
+    for (const field of RECEIVE_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field] = current[field];
+        }
+    }
+    if (options.amount !== undefined)
+        body.actualPayAmount = options.amount;
+    if (options.date !== undefined)
+        body.actualPayDate = normalizeReceiveDate(options.date);
+    if (options.remark !== undefined)
+        body.remark = options.remark;
+    if (body.resourceFiles === undefined)
+        body.resourceFiles = [];
+    return body;
+}
 function updateCommand(receive) {
     receive
         .command('update <id>')
@@ -48,7 +89,9 @@ Notes:
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            if (options.amount === undefined && !options.date && !options.remark) {
+            if (options.amount === undefined &&
+                options.date === undefined &&
+                options.remark === undefined) {
                 throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --remark', { available_options: ['--amount', '--date', '--remark'] });
             }
             const client = (0, http_client_1.createClient)(profile);
@@ -59,26 +102,7 @@ Notes:
             if (!current) {
                 throw new Error(`Payment record "${id}" not found in receivable "${options.receivableId}". Use 'crm receive get ${options.receivableId}' to see available payment IDs.`);
             }
-            const body = {
-                id: current.id,
-                receiveId: current.receiveId,
-                detailType: 0,
-                actualPayAmount: options.amount !== undefined ? options.amount : current.actualPayAmount,
-                actualPayDate: options.date
-                    ? new Date(options.date + 'T00:00:00.000Z').toISOString()
-                    : current.actualPayDate,
-                remark: options.remark ?? current.remark ?? '',
-                receiveCode: current.receiveCode ?? null,
-                invoiceCode: current.invoiceCode ?? null,
-                invoiceTypeId: current.invoiceTypeId ?? null,
-                invoiceType: current.invoiceType ?? null,
-                isInvoice: current.isInvoice ?? null,
-                financeInvoiceId: current.financeInvoiceId ?? null,
-                financeReceiveId: current.financeReceiveId ?? null,
-                invoiceDate: null,
-                invoiceAmount: null,
-                resourceFiles: current.resourceFiles ?? [],
-            };
+            const body = buildReceiveUpdateBody(current, options, id);
             const response = await client.post(`/api/crm/Receive/updateReceiveDetail?id=${id}`, body, { traceId });
             const parseResult = ReceiveDetailSchema.safeParse(response);
             const updated = parseResult.success ? parseResult.data : { id, ...body };
@@ -103,7 +127,7 @@ Notes:
                     formatter_1.formatter.info(`Amount: ¥${body.actualPayAmount}`);
                 if (body.actualPayDate)
                     formatter_1.formatter.info(`Pay Date: ${body.actualPayDate}`);
-                if (body.remark)
+                if (body.remark !== undefined && body.remark !== null)
                     formatter_1.formatter.info(`Remark: ${body.remark}`);
             }
         }

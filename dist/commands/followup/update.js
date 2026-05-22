@@ -24,6 +24,43 @@ function resolveFollowupType(raw) {
         return n;
     throw new Error(`Invalid --type "${raw}". Valid values: phone(1), wechat(2), visit(3), other(0)`);
 }
+const FOLLOWUP_UPDATE_ALLOWLIST = [
+    'content',
+    'followUpDate',
+    'nextFollowUpDate',
+    'type',
+    'followUpType',
+    'nextPlan',
+    'relatedId',
+    'relatedType',
+    'relatedTitle',
+    'ownerId',
+    'owner',
+];
+function normalizeDate(value) {
+    if (typeof value !== 'string')
+        return value;
+    return value.includes('T') ? value : new Date(`${value}T00:00:00.000Z`).toISOString();
+}
+function buildFollowupUpdateBody(current, options, id) {
+    const body = { id: current.id ?? id };
+    for (const field of FOLLOWUP_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field === 'followUpType' ? 'type' : field] = current[field];
+        }
+    }
+    if (options.content !== undefined)
+        body.content = options.content;
+    if (options.date !== undefined)
+        body.followUpDate = normalizeDate(options.date);
+    if (options.nextDate !== undefined)
+        body.nextFollowUpDate = options.nextDate;
+    if (options.type !== undefined)
+        body.type = resolveFollowupType(String(options.type));
+    if (options.nextPlan !== undefined)
+        body.nextPlan = options.nextPlan;
+    return body;
+}
 function updateFollowupCommand(followup) {
     followup
         .command('update <id>')
@@ -58,7 +95,11 @@ Notes:
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            if (!options.content && !options.date && !options.nextDate && !options.type && !options.nextPlan) {
+            if (options.content === undefined &&
+                options.date === undefined &&
+                options.nextDate === undefined &&
+                options.type === undefined &&
+                options.nextPlan === undefined) {
                 throw new Error('At least one option must be provided: --content, --date, --next-date, --type, --next-plan');
             }
             const client = (0, http_client_1.createClient)(profile);
@@ -70,29 +111,7 @@ Notes:
             if (process.env.DEBUG_CRM) {
                 console.error(`[DEBUG] Current data:`, JSON.stringify(current));
             }
-            // Resolve type if provided
-            const resolvedType = options.type !== undefined
-                ? resolveFollowupType(options.type)
-                : current.followUpType;
-            // Build update payload (merge with current data)
-            const updateData = {
-                id: current.id || id,
-                content: options.content || current.content,
-                followUpDate: options.date
-                    ? (options.date.includes('T') ? options.date : new Date(options.date + 'T00:00:00.000Z').toISOString())
-                    : current.followUpDate,
-                nextFollowUpDate: options.nextDate || current.nextFollowUpDate,
-                type: resolvedType,
-                nextPlan: options.nextPlan || current.nextPlan,
-                // Preserve required fields from current record
-                relatedId: current.relatedId,
-                relatedType: current.relatedType,
-                relatedTitle: current.relatedTitle,
-            };
-            if (current.ownerId)
-                updateData.ownerId = current.ownerId;
-            if (current.owner)
-                updateData.owner = current.owner;
+            const updateData = buildFollowupUpdateBody(current, options, id);
             if (process.env.DEBUG_CRM) {
                 console.error(`[DEBUG] Calling POST /api/crm/followup/update?id=${id} with:`, JSON.stringify(updateData));
             }

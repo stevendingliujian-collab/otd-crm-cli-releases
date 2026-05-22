@@ -7,8 +7,42 @@ exports.updateCommand = updateCommand;
 const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
+const cli_error_1 = require("../../core/errors/cli-error");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const task_1 = require("../../schemas/resources/task");
+const error_codes_1 = require("../../constants/error-codes");
+const TASK_UPDATE_ALLOWLIST = [
+    'title',
+    'description',
+    'assigneeId',
+    'priority',
+    'status',
+    'dueDate',
+    'completedDate',
+    'relatedId',
+    'relatedType',
+];
+function buildTaskUpdateBody(current, options, id) {
+    const body = { id };
+    for (const field of TASK_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field] = current[field];
+        }
+    }
+    if (options.title !== undefined)
+        body.title = options.title;
+    if (options.description !== undefined)
+        body.description = options.description;
+    if (options.assigneeId !== undefined)
+        body.assigneeId = options.assigneeId;
+    if (options.priority !== undefined)
+        body.priority = parseInt(String(options.priority), 10);
+    if (options.status !== undefined)
+        body.status = parseInt(String(options.status), 10);
+    if (options.dueDate !== undefined)
+        body.dueDate = options.dueDate;
+    return body;
+}
 function updateCommand(task) {
     task
         .command('update')
@@ -25,24 +59,17 @@ function updateCommand(task) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            // Build request body
-            const requestBody = {
-                id,
-            };
-            if (options.title)
-                requestBody.title = options.title;
-            if (options.description)
-                requestBody.description = options.description;
-            if (options.assigneeId)
-                requestBody.assigneeId = options.assigneeId;
-            if (options.priority)
-                requestBody.priority = parseInt(options.priority, 10);
-            if (options.status)
-                requestBody.status = parseInt(options.status, 10);
-            if (options.dueDate)
-                requestBody.dueDate = options.dueDate;
-            // Make API request
+            const hasAnyField = ['title', 'description', 'assigneeId', 'priority', 'status', 'dueDate']
+                .some((field) => options[field] !== undefined);
+            if (!hasAnyField) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --title, --description, --assignee-id, --priority, --status, --due-date');
+            }
             const client = (0, http_client_1.createClient)(profile);
+            const current = await client.get(`/api/crm/task/get?id=${id}`, {
+                traceId,
+            });
+            const currentData = task_1.TaskSchema.parse(current);
+            const requestBody = buildTaskUpdateBody(currentData, options, id);
             const response = await client.post(`/api/crm/task/update?id=${id}`, requestBody, {
                 traceId,
             });

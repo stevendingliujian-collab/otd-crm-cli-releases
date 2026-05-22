@@ -21,6 +21,49 @@ const InvoiceDetailSchema = zod_1.z.object({
     invoiceType: zod_1.z.string().optional().nullable(),
     remark: zod_1.z.string().optional().nullable(),
 }).passthrough();
+const INVOICE_UPDATE_ALLOWLIST = [
+    'receiveId',
+    'invoiceAmount',
+    'invoiceDate',
+    'invoiceCode',
+    'remark',
+    'invoiceTypeId',
+    'invoiceType',
+    'isInvoice',
+    'financeInvoiceId',
+    'financeReceiveId',
+    'receiveCode',
+    'resourceFiles',
+];
+function normalizeInvoiceDate(value) {
+    if (typeof value !== 'string')
+        return value;
+    return value.includes('T') ? value : new Date(`${value}T00:00:00.000Z`).toISOString();
+}
+function buildInvoiceUpdateBody(current, options, id) {
+    const body = {
+        id: current.id ?? id,
+        detailType: 1,
+        actualPayDate: null,
+        actualPayAmount: null,
+    };
+    for (const field of INVOICE_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field] = current[field];
+        }
+    }
+    if (options.amount !== undefined)
+        body.invoiceAmount = options.amount;
+    if (options.date !== undefined)
+        body.invoiceDate = normalizeInvoiceDate(options.date);
+    if (options.invoiceNumber !== undefined)
+        body.invoiceCode = options.invoiceNumber;
+    if (options.remark !== undefined)
+        body.remark = options.remark;
+    if (body.resourceFiles === undefined)
+        body.resourceFiles = [];
+    return body;
+}
 function updateCommand(invoice) {
     invoice
         .command('update <id>')
@@ -53,7 +96,10 @@ Notes:
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            if (options.amount === undefined && !options.date && !options.invoiceNumber && !options.remark) {
+            if (options.amount === undefined &&
+                options.date === undefined &&
+                options.invoiceNumber === undefined &&
+                options.remark === undefined) {
                 throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --amount, --date, --invoice-number, --remark', { available_options: ['--amount', '--date', '--invoice-number', '--remark'] });
             }
             const client = (0, http_client_1.createClient)(profile);
@@ -64,26 +110,7 @@ Notes:
             if (!current) {
                 throw new Error(`Invoice record "${id}" not found in receivable "${options.receivableId}". Use 'crm invoice get ${options.receivableId}' to see available invoice IDs.`);
             }
-            const body = {
-                id: current.id,
-                receiveId: current.receiveId,
-                detailType: 1,
-                invoiceAmount: options.amount !== undefined ? options.amount : current.invoiceAmount,
-                invoiceDate: options.date
-                    ? new Date(options.date + 'T00:00:00.000Z').toISOString()
-                    : current.invoiceDate,
-                invoiceCode: options.invoiceNumber ?? current.invoiceCode ?? null,
-                remark: options.remark ?? current.remark ?? '',
-                invoiceTypeId: current.invoiceTypeId ?? null,
-                invoiceType: current.invoiceType ?? null,
-                isInvoice: current.isInvoice ?? null,
-                financeInvoiceId: current.financeInvoiceId ?? null,
-                financeReceiveId: current.financeReceiveId ?? null,
-                receiveCode: current.receiveCode ?? null,
-                actualPayDate: null,
-                actualPayAmount: null,
-                resourceFiles: current.resourceFiles ?? [],
-            };
+            const body = buildInvoiceUpdateBody(current, options, id);
             const response = await client.post(`/api/crm/Receive/updateReceiveDetail?id=${id}`, body, { traceId });
             const parseResult = InvoiceDetailSchema.safeParse(response);
             const updated = parseResult.success ? parseResult.data : { id, ...body };
@@ -110,7 +137,7 @@ Notes:
                     formatter_1.formatter.info(`Amount: ¥${body.invoiceAmount}`);
                 if (body.invoiceDate)
                     formatter_1.formatter.info(`Invoice Date: ${body.invoiceDate}`);
-                if (body.remark)
+                if (body.remark !== undefined && body.remark !== null)
                     formatter_1.formatter.info(`Remark: ${body.remark}`);
             }
         }

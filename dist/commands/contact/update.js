@@ -7,8 +7,46 @@ exports.updateCommand = updateCommand;
 const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
+const cli_error_1 = require("../../core/errors/cli-error");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const contact_1 = require("../../schemas/resources/contact");
+const error_codes_1 = require("../../constants/error-codes");
+const CONTACT_UPDATE_ALLOWLIST = [
+    'name',
+    'phone',
+    'email',
+    'position',
+    'wechat',
+    'qq',
+    'remark',
+    'customId',
+    'customName',
+    'ownerId',
+    'owner',
+];
+function buildContactUpdateBody(current, options, id) {
+    const body = { id };
+    for (const field of CONTACT_UPDATE_ALLOWLIST) {
+        if (current[field] !== undefined) {
+            body[field] = current[field];
+        }
+    }
+    if (options.name !== undefined)
+        body.name = options.name;
+    if (options.phone !== undefined)
+        body.phone = options.phone;
+    if (options.email !== undefined)
+        body.email = options.email;
+    if (options.position !== undefined)
+        body.position = options.position;
+    if (options.wechat !== undefined)
+        body.wechat = options.wechat;
+    if (options.qq !== undefined)
+        body.qq = options.qq;
+    if (options.remark !== undefined)
+        body.remark = options.remark;
+    return body;
+}
 function updateCommand(contact) {
     contact
         .command('update')
@@ -26,26 +64,17 @@ function updateCommand(contact) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            // Build request body
-            const requestBody = {
-                id,
-            };
-            if (options.name)
-                requestBody.name = options.name;
-            if (options.phone)
-                requestBody.phone = options.phone;
-            if (options.email)
-                requestBody.email = options.email;
-            if (options.position)
-                requestBody.position = options.position;
-            if (options.wechat)
-                requestBody.wechat = options.wechat;
-            if (options.qq)
-                requestBody.qq = options.qq;
-            if (options.remark)
-                requestBody.remark = options.remark;
-            // Make API request
+            const hasAnyField = ['name', 'phone', 'email', 'position', 'wechat', 'qq', 'remark']
+                .some((field) => options[field] !== undefined);
+            if (!hasAnyField) {
+                throw new cli_error_1.ValidationError(error_codes_1.ERROR_CODES.VALIDATION_422_REQUIRED, 'At least one field must be provided to update', 'Available options: --name, --phone, --email, --position, --wechat, --qq, --remark');
+            }
             const client = (0, http_client_1.createClient)(profile);
+            const current = await client.post('/api/crm/contact/get', { id }, {
+                traceId,
+            });
+            const currentData = contact_1.ContactSchema.parse(current);
+            const requestBody = buildContactUpdateBody(currentData, options, id);
             const response = await client.post(`/api/crm/contact/update?id=${id}`, requestBody, {
                 traceId,
             });
