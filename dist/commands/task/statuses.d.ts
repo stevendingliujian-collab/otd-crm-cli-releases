@@ -1,5 +1,5 @@
 /**
- * Task statuses command
+ * TMS task status actions
  */
 import { Command } from 'commander';
 export declare function statusesCommand(task: Command): void;

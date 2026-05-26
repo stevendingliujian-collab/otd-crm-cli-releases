@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Task assign command
+ * TMS task assign command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.assignCommand = assignCommand;
@@ -92,13 +92,13 @@ function assignCommand(task) {
             if (options.verbose) {
                 formatter_1.formatter.info(`Fetching task ${id}...`);
             }
-            const current = await client.get(`/api/tms/task/get?id=${id}`, { traceId });
+            const current = await client.get(`/api/tms/taskItem/get?id=${id}`, { traceId });
             const currentData = task_1.TaskSchema.parse(current);
             // Step 3: Confirmation prompt (unless --yes)
             if (!options.yes) {
                 formatter_1.formatter.info(`Will assign task "${currentData.title}" to ${ownerName}`);
-                if (currentData.responsibleName) {
-                    formatter_1.formatter.info(`Current responsible: ${currentData.responsibleName}`);
+                if (currentData.responsibleUserName) {
+                    formatter_1.formatter.info(`Current responsible: ${currentData.responsibleUserName}`);
                 }
                 formatter_1.formatter.warn('Use --yes to skip this prompt');
             }
@@ -108,23 +108,12 @@ function assignCommand(task) {
             }
             const body = {
                 id: currentData.id,
-                title: currentData.title,
-                responsibleId: ownerId,
+                updateProperty: 'responsibleUserId',
+                item: {
+                    responsibleUserId: ownerId,
+                },
             };
-            // Preserve existing fields
-            if (currentData.description)
-                body.description = currentData.description;
-            if (currentData.status !== undefined)
-                body.status = currentData.status;
-            if (currentData.priority !== undefined)
-                body.priority = currentData.priority;
-            if (currentData.dueDate)
-                body.dueDate = currentData.dueDate;
-            if (currentData.relatedType !== undefined)
-                body.relatedType = currentData.relatedType;
-            if (currentData.relatedId)
-                body.relatedId = currentData.relatedId;
-            const response = await client.post(`/api/tms/task/update?id=${id}`, body, { traceId });
+            const response = await client.post(`/api/tms/taskItem/updateTaskItem`, body, { traceId });
             const updated = task_1.TaskSchema.parse(response);
             // Step 5: Log audit
             await audit_logger_1.auditLogger.log({
@@ -138,7 +127,7 @@ function assignCommand(task) {
                     api_url: client['axiosInstance'].defaults.baseURL || '',
                 },
                 changes: {
-                    old_responsible: currentData.responsibleName,
+                    old_responsible: currentData.responsibleUserName,
                     new_responsible: ownerName,
                 },
             });
@@ -154,8 +143,8 @@ function assignCommand(task) {
                 formatter_1.formatter.success(`✅ Task assigned successfully`);
                 formatter_1.formatter.info(`Title: ${updated.title}`);
                 formatter_1.formatter.info(`New responsible: ${ownerName}`);
-                if (currentData.responsibleName && currentData.responsibleName !== ownerName) {
-                    formatter_1.formatter.info(`Previous responsible: ${currentData.responsibleName}`);
+                if (currentData.responsibleUserName && currentData.responsibleUserName !== ownerName) {
+                    formatter_1.formatter.info(`Previous responsible: ${currentData.responsibleUserName}`);
                 }
             }
         }

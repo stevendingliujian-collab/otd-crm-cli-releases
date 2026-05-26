@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Task comment command
+ * TMS comment command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.commentCommand = commentCommand;
@@ -12,7 +12,7 @@ const zod_1 = require("zod");
 const CommentSchema = zod_1.z.object({
     id: zod_1.z.string(),
     content: zod_1.z.string(),
-    taskId: zod_1.z.string().optional().nullable(),
+    taskItemId: zod_1.z.string().optional().nullable(),
     createdTime: zod_1.z.string().optional().nullable(),
 }).passthrough();
 function commentCommand(task) {
@@ -28,12 +28,12 @@ function commentCommand(task) {
             const profile = globalOpts.profile || 'default';
             // Build request body
             const requestBody = {
-                taskId: id,
+                taskItemId: id,
                 content: options.content,
             };
             // Make API request
             const client = (0, http_client_1.createClient)(profile);
-            const response = await client.post('/api/crm/task/createComment', requestBody, {
+            const response = await client.post('/api/tms/comment/add', requestBody, {
                 traceId,
             });
             // Validate response

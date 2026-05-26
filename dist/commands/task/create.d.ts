@@ -1,5 +1,5 @@
 /**
- * Task create command
+ * TMS task create command
  */
 import { Command } from 'commander';
 export declare function createCommand(task: Command): void;

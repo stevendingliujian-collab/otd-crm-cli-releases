@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Task search command
+ * TMS task search command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.searchCommand = searchCommand;
@@ -12,19 +12,23 @@ const task_1 = require("../../schemas/resources/task");
 function searchCommand(task) {
     task
         .command('search')
-        .description('Search tasks')
-        .option('-k, --keyword <keyword>', 'Search keyword (task title)')
-        .option('--status <status>', 'Task status (pending, started, done, checked, rejected, stopped, canceled, active, all)', 'all')
-        .option('--assignee <assignee>', 'Assignee name')
-        .option('--priority <priority>', 'Task priority (low, normal, high, urgent)')
-        // Due date filters (P1 priority)
-        .option('--due-after <date>', 'Due date >= (YYYY-MM-DD)')
-        .option('--due-before <date>', 'Due date <= (YYYY-MM-DD)')
-        .option('--overdue', 'Show only overdue tasks (due date < today)')
-        // Creation time filters
-        .option('--created-after <date>', 'Created time >= (YYYY-MM-DD)')
-        .option('--created-before <date>', 'Created time <= (YYYY-MM-DD)')
-        // Pagination
+        .description('Search task items')
+        .option('-k, --keyword <keyword>', 'Fuzzy search keyword')
+        .option('--title <title>', 'Task title')
+        .option('--status <status>', 'Task status')
+        .option('--priority <priority>', 'Task priority')
+        .option('--responsible-user-id <id>', 'Responsible user ID')
+        .option('--check-user-id <id>', 'Check user ID')
+        .option('--parent-task-id <id>', 'Parent task ID')
+        .option('--related-id <id>', 'Related resource ID')
+        .option('--related-type <type>', 'Related resource type')
+        .option('--task-custom-type-id <id>', 'Custom task type ID')
+        .option('--tag-id <id>', 'Filter by a single tag ID')
+        .option('--plan-start-after <date>', 'Plan start date >= (YYYY-MM-DD)')
+        .option('--plan-start-before <date>', 'Plan start date <= (YYYY-MM-DD)')
+        .option('--plan-done-after <date>', 'Plan done date >= (YYYY-MM-DD)')
+        .option('--plan-done-before <date>', 'Plan done date <= (YYYY-MM-DD)')
+        .option('--overdue', 'Show only overdue tasks')
         .option('-p, --page <page>', 'Page number', '1')
         .option('-s, --size <size>', 'Page size', '20')
         .action(async (options, command) => {
@@ -32,53 +36,43 @@ function searchCommand(task) {
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            // Build filter object (lowercase for old API format)
             const filter = {};
-            // Keyword filter
-            if (options.keyword) {
-                filter.likeString = options.keyword;
-            }
-            // Status filter
-            if (options.status && options.status !== 'all') {
+            if (options.keyword)
+                filter.fuzzySearch = options.keyword;
+            if (options.title)
+                filter.title = options.title;
+            if (options.status)
                 filter.status = options.status;
-            }
-            // Assignee filter
-            if (options.assignee) {
-                filter.assignee = options.assignee;
-            }
-            // Priority filter
-            if (options.priority) {
+            if (options.priority)
                 filter.priority = options.priority;
-            }
-            // Due date filters
-            if (options.dueAfter) {
-                filter.planDoneDateFrom = options.dueAfter;
-            }
-            if (options.dueBefore) {
-                filter.planDoneDateTo = options.dueBefore;
-            }
-            // Overdue filter (due date < today)
-            if (options.overdue) {
-                const today = new Date().toISOString().split('T')[0];
-                filter.planDoneDateTo = today;
-                // Also filter out completed/checked tasks
-                if (!options.status || options.status === 'all') {
-                    filter.status = 'active'; // active = pending + started
-                }
-            }
-            // Creation time filters
-            if (options.createdAfter) {
-                const d = new Date(options.createdAfter + 'T00:00:00');
-                d.setSeconds(d.getSeconds() - 1);
-                filter.creationTimeStart = d.toISOString().replace('Z', '').split('.')[0];
-            }
-            if (options.createdBefore) {
-                filter.creationTimeEnd = options.createdBefore + 'T23:59:59';
-            }
-            // Build request body (Task uses old pageIndex/pageSize format)
+            if (options.responsibleUserId)
+                filter.responsibleUserId = options.responsibleUserId;
+            if (options.checkUserId)
+                filter.checkUserId = options.checkUserId;
+            if (options.parentTaskId)
+                filter.parentTaskId = options.parentTaskId;
+            if (options.relatedId)
+                filter.relatedId = options.relatedId;
+            if (options.relatedType)
+                filter.relatedType = options.relatedType;
+            if (options.taskCustomTypeId)
+                filter.taskCustomTypeId = options.taskCustomTypeId;
+            if (options.tagId)
+                filter.tagIds = [options.tagId];
+            if (options.planStartAfter)
+                filter.planStartDateStart = options.planStartAfter;
+            if (options.planStartBefore)
+                filter.planStartDateEnd = options.planStartBefore;
+            if (options.planDoneAfter)
+                filter.planDoneDateStart = options.planDoneAfter;
+            if (options.planDoneBefore)
+                filter.planDoneDateEnd = options.planDoneBefore;
+            if (options.overdue)
+                filter.isOverdue = true;
             const requestBody = {
-                pageIndex: parseInt(options.page, 10),
-                pageSize: parseInt(options.size, 10),
+                skipCount: (parseInt(options.page, 10) - 1) * parseInt(options.size, 10),
+                maxResultCount: parseInt(options.size, 10),
+                sorting: options.sorting,
                 filter,
             };
             if (globalOpts.verbose) {
@@ -87,7 +81,7 @@ function searchCommand(task) {
             }
             // Make API request
             const client = (0, http_client_1.createClient)(profile);
-            const response = await client.post('/api/crm/task/getList', requestBody, {
+            const response = await client.post('/api/tms/taskItem/getList', requestBody, {
                 traceId,
             });
             // Validate response
@@ -111,20 +105,13 @@ function searchCommand(task) {
             else {
                 const output = formatter_1.formatter.format(validated.items, {
                     format: 'table',
-                    fields: globalOpts.fields?.split(',') || [
-                        'id',
-                        'title',
-                        'statusName',
-                        'priorityName',
-                        'assignee',
-                        'planDoneDate',
-                    ],
+                    fields: globalOpts.fields?.split(',') || ['id', 'title', 'status', 'priority', 'responsibleUserName', 'planDoneDate'],
                     headers: {
                         id: 'ID',
                         title: 'Title',
-                        statusName: 'Status',
-                        priorityName: 'Priority',
-                        assignee: 'Assignee',
+                        status: 'Status',
+                        priority: 'Priority',
+                        responsibleUserName: 'Responsible',
                         planDoneDate: 'Due Date',
                     },
                 });

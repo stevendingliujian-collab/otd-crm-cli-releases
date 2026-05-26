@@ -1,5 +1,5 @@
 /**
- * Task search command
+ * TMS task search command
  */
 import { Command } from 'commander';
 export declare function searchCommand(task: Command): void;

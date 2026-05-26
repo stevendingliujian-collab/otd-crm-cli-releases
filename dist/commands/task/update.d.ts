@@ -1,5 +1,5 @@
 /**
- * Task update command
+ * TMS task update command
  */
 import { Command } from 'commander';
 export declare function updateCommand(task: Command): void;

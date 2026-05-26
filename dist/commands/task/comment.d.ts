@@ -1,5 +1,5 @@
 /**
- * Task comment command
+ * TMS comment command
  */
 import { Command } from 'commander';
 export declare function commentCommand(task: Command): void;

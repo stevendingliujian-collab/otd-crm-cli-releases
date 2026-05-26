@@ -147,6 +147,14 @@ crm project create \
 crm task create --title "任务标题" --related-id <opp_id> --related-type opportunity --json
 ```
 
+### TMS 任务更新
+```bash
+crm task update <task_id> --update-property title --title "新标题" --json
+crm task update <task_id> --update-property description --description "新说明" --json
+crm task update <task_id> --update-property responsibleUserId --assignee-id <user_id> --json
+```
+> `--update-property` 支持：`title`、`description`、`responsibleUserId`、`priority`、`status`、`planDoneDate`、`planStartDate`、`autoCompletion`、`taskType`、`taskCustomTypeId`、`collaborationIds`、`taskDocLinks`
+
 ## 更新操作
 
 ### 更新商机

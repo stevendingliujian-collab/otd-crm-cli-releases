@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Task get command
+ * TMS task get command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCommand = getCommand;
@@ -21,7 +21,7 @@ function getCommand(task) {
             const profile = globalOpts.profile || 'default';
             // Make API request
             const client = (0, http_client_1.createClient)(profile);
-            const response = await client.get(`/api/crm/task/get?id=${id}`, {
+            const response = await client.get(`/api/tms/taskItem/get?id=${id}`, {
                 traceId,
             });
             // Validate response

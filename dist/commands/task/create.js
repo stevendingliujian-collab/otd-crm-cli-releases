@@ -1,6 +1,6 @@
 "use strict";
 /**
- * Task create command
+ * TMS task create command
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCommand = createCommand;
@@ -12,10 +12,10 @@ const task_1 = require("../../schemas/resources/task");
 function createCommand(task) {
     task
         .command('create')
-        .description('Create a new task')
+        .description('Create a new task item')
         .requiredOption('-t, --title <title>', 'Task title')
         .option('-d, --description <description>', 'Task description')
-        .option('-a, --assignee-id <assigneeId>', 'Assignee user ID')
+        .option('-a, --assignee-id <assigneeId>', 'Responsible user ID')
         .option('--priority <priority>', 'Task priority (number)')
         .option('--status <status>', 'Task status (number)')
         .option('--due-date <dueDate>', 'Due date (YYYY-MM-DD)')
@@ -29,24 +29,25 @@ function createCommand(task) {
             // Build request body
             const requestBody = {
                 title: options.title,
+                taskType: 0,
             };
             if (options.description)
                 requestBody.description = options.description;
             if (options.assigneeId)
-                requestBody.assigneeId = options.assigneeId;
+                requestBody.responsibleUserId = options.assigneeId;
             if (options.priority)
                 requestBody.priority = parseInt(options.priority, 10);
             if (options.status)
                 requestBody.status = parseInt(options.status, 10);
             if (options.dueDate)
-                requestBody.dueDate = options.dueDate;
+                requestBody.planDoneDate = options.dueDate;
             if (options.relatedId)
                 requestBody.relatedId = options.relatedId;
             if (options.relatedType)
                 requestBody.relatedType = parseInt(options.relatedType, 10);
             // Make API request
             const client = (0, http_client_1.createClient)(profile);
-            const response = await client.post('/api/crm/task/create', requestBody, {
+            const response = await client.post('/api/tms/taskItem/create', requestBody, {
                 traceId,
             });
             // Validate response
@@ -71,10 +72,10 @@ function createCommand(task) {
                 formatter_1.formatter.success(`✓ Task created successfully`);
                 console.log(`\nTask ID: ${validated.id}`);
                 console.log(`Title: ${validated.title}`);
-                if (validated.assignee)
-                    console.log(`Assignee: ${validated.assignee}`);
-                if (validated.dueDate)
-                    console.log(`Due Date: ${validated.dueDate}`);
+                if (validated.responsibleUserName)
+                    console.log(`Responsible: ${validated.responsibleUserName}`);
+                if (validated.planDoneDate)
+                    console.log(`Due Date: ${validated.planDoneDate}`);
             }
         }
         catch (error) {

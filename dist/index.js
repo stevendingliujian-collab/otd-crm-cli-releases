@@ -93,7 +93,7 @@ Common Commands:
   crm clue search             Search leads (potential customers)
   crm opportunity search      Search sales opportunities
   crm contract search         Search contracts
-  crm task search             Search tasks
+  crm task search             Search TMS task items
 
 Global Options:
   --profile <name>            Switch between multiple CRM accounts (default: "default")

@@ -1,35 +1,29 @@
 "use strict";
 /**
- * Task statuses command
+ * TMS task status actions
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.statusesCommand = statusesCommand;
-const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
-const zod_1 = require("zod");
-const StatusSchema = zod_1.z.object({
-    id: zod_1.z.number(),
-    name: zod_1.z.string(),
-}).passthrough();
-const StatusListSchema = zod_1.z.array(StatusSchema);
 function statusesCommand(task) {
     task
         .command('statuses')
-        .description('Get task status list')
+        .description('List supported task status actions')
         .action(async (_options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
             const globalOpts = command.optsWithGlobals();
             const profile = globalOpts.profile || 'default';
-            // Make API request
-            const client = (0, http_client_1.createClient)(profile);
-            const response = await client.post('/api/crm/task/getStatuses', {}, {
-                traceId,
-            });
-            // Validate response
-            const validated = StatusListSchema.parse(response);
+            const validated = [
+                { name: 'start', path: '/api/tms/taskItem/start' },
+                { name: 'done', path: '/api/tms/taskItem/done' },
+                { name: 'check', path: '/api/tms/taskItem/check' },
+                { name: 'reject', path: '/api/tms/taskItem/reject' },
+                { name: 'stop', path: '/api/tms/taskItem/stop' },
+                { name: 'cancel', path: '/api/tms/taskItem/cancel' },
+            ];
             // Log audit
             await audit_logger_1.auditLogger.log({
                 trace_id: traceId,
@@ -39,7 +33,7 @@ function statusesCommand(task) {
                 resource_id: 'N/A',
                 meta: {
                     profile,
-                    api_url: await client['axiosInstance'].defaults.baseURL || '',
+                    api_url: 'static',
                 },
             });
             // Output
