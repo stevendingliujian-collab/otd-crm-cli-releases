@@ -1,0 +1,4 @@
+interface:
+  display_name: "CRM Tenant Register"
+  short_description: "Send SMS codes and self-register CRM tenants from the CLI."
+  default_prompt: "Register a new CRM tenant using phone SMS verification."

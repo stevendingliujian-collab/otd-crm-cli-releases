@@ -25,7 +25,7 @@ crm auth whoami   # 应输出当前登录用户
 
 | 命令族 | 子命令 | 说明 |
 |-------|--------|------|
-| `crm auth` | login / logout / whoami / device | 认证管理 |
+| `crm auth` | login / logout / whoami / device / register-sms / register-tenant | 认证与租户注册 |
 | `crm customer` | search / get / create / update / assign | 客户 |
 | `crm clue` | search / get / create / update / convert | 线索 |
 | `crm opportunity` | search / get / create / update / assign / stage / stages | 商机 |
