@@ -9,11 +9,13 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const task_1 = require("../../schemas/resources/task");
+const help_1 = require("../../utils/help");
 function getCommand(task) {
     task
         .command('get')
         .description('Get task details by ID')
         .argument('<id>', 'Task ID')
+        .addHelpText('after', (0, help_1.getByIdHelp)('task get', 'task', 'crm task search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

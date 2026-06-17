@@ -10,6 +10,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const zod_1 = require("zod");
+const help_1 = require("../../utils/help");
 const ReceiveDetailSchema = zod_1.z.object({
     id: zod_1.z.string(),
     receiveId: zod_1.z.string().optional().nullable(),
@@ -62,6 +63,7 @@ Notes:
   - Each record shows the parent receivable context (contract, customer, collection cycle)
   - Use 'crm receivable search' to find receivable IDs for 'crm receive get'
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm receive search', 'payment record', 'contract filter accepts contract code because the option is --contract <code>'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

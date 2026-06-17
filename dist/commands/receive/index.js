@@ -8,10 +8,18 @@ const search_1 = require("./search");
 const get_1 = require("./get");
 const create_1 = require("./create");
 const update_1 = require("./update");
+const help_1 = require("../../utils/help");
 function receiveCommands(program) {
     const receive = program
         .command('receive')
         .description('Receive (payment) management commands');
+    (0, help_1.addCommandGroupHelp)(receive, {
+        command: 'receive',
+        resource: 'payment record',
+        searchExample: 'crm receive search --help',
+        getExample: 'crm receive get --help',
+        extraNotes: ['receive get expects a receivable ID, not a payment record ID.'],
+    });
     (0, search_1.searchCommand)(receive);
     (0, get_1.getCommand)(receive);
     (0, create_1.createCommand)(receive);

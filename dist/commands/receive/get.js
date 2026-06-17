@@ -41,6 +41,13 @@ Notes:
   - Also shown as "Receivable ID" in 'crm receive create' output
   - Returns all payment records (actualReceives) for the given receivable item
 `)
+        .addHelpText('after', `
+AI usage guidance:
+  - This command reads payment records under one receivable item.
+  - The <receivableId> argument must be a receivable ID from 'crm receivable search' output.
+  - Do not pass payment record id, contract code, customer name, or keyword as <receivableId>.
+  - If you only know a customer or contract, run 'crm receivable search' first.
+`)
         .action(async (receivableId, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

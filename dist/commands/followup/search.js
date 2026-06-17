@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const followup_1 = require("../../schemas/resources/followup");
+const help_1 = require("../../utils/help");
 function searchCommand(followup) {
     followup
         .command('search')
@@ -54,6 +55,7 @@ Notes:
   - Followup types: 0=其他, 1=电话, 2=微信, 3=拜访
   - Use --json for machine-readable output
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm followup search', 'followup record', 'related-id/customer-id/opportunity-id filters expect CRM IDs from their own search outputs'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

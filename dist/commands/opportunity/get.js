@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const opportunity_1 = require("../../schemas/resources/opportunity");
+const help_1 = require("../../utils/help");
 function getCommand(opportunity) {
     opportunity
         .command('get <id>')
@@ -35,6 +36,7 @@ Notes:
   - Use --json for machine-readable output
   - Short alias: 'crm opp get <id>'
 `)
+        .addHelpText('after', (0, help_1.getByIdHelp)('opportunity get', 'opportunity', 'crm opportunity search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

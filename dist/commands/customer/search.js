@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const customer_1 = require("../../schemas/resources/customer");
+const help_1 = require("../../utils/help");
 function searchCommand(customer) {
     customer
         .command('search')
@@ -49,6 +50,7 @@ Notes:
   - Maximum page size is 500 records
   - Use --json for machine-readable output
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm customer search', 'customer', 'customer code may be used for recognition, but customer get/update/assign use id'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

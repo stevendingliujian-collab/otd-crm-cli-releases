@@ -8,10 +8,17 @@ const search_1 = require("./search");
 const create_1 = require("./create");
 const get_1 = require("./get");
 const update_1 = require("./update");
+const help_1 = require("../../utils/help");
 function followupCommands(program) {
     const followup = program
         .command('followup')
         .description('Followup record management commands');
+    (0, help_1.addCommandGroupHelp)(followup, {
+        command: 'followup',
+        resource: 'followup record',
+        searchExample: 'crm followup search --help',
+        getExample: 'crm followup get --help',
+    });
     (0, search_1.searchCommand)(followup);
     (0, get_1.getCommand)(followup);
     (0, create_1.createCommand)(followup);

@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const task_1 = require("../../schemas/resources/task");
+const help_1 = require("../../utils/help");
 function searchCommand(task) {
     task
         .command('search')
@@ -31,6 +32,7 @@ function searchCommand(task) {
         .option('--overdue', 'Show only overdue tasks')
         .option('-p, --page <page>', 'Page number', '1')
         .option('-s, --size <size>', 'Page size', '20')
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm task search', 'task', 'use the returned id for task get/update/assign/comment'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

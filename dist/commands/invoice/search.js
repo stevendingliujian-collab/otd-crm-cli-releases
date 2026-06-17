@@ -10,6 +10,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const zod_1 = require("zod");
+const help_1 = require("../../utils/help");
 const ReceivableWithInvoiceSchema = zod_1.z.object({
     id: zod_1.z.string(),
     contractCode: zod_1.z.string().optional().nullable(),
@@ -60,6 +61,7 @@ Notes:
   - Use 'crm invoice get <id>' with the returned ID to see individual invoice records
   - Use 'crm invoice create --receivable-id <id>' to add an invoice record
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm invoice search', 'receivable item with invoice summary', 'contract filter accepts contract code because the option is --contract <code>'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

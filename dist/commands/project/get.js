@@ -9,10 +9,12 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const project_1 = require("../../schemas/resources/project");
+const help_1 = require("../../utils/help");
 function getCommand(project) {
     project
         .command('get <id>')
         .description('Get project details by ID (根据ID获取项目详情)')
+        .addHelpText('after', (0, help_1.getByIdHelp)('project get', 'project', 'crm project search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

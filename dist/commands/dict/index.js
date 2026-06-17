@@ -6,10 +6,18 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const dictionary_1 = require("../../utils/dictionary");
+const help_1 = require("../../utils/help");
 function dictCommands(program) {
     const dict = program
         .command('dict')
         .description('Dictionary lookup commands (数据字典查询)');
+    (0, help_1.addCommandGroupHelp)(dict, {
+        command: 'dict',
+        resource: 'dictionary',
+        searchExample: 'crm dict list --help',
+        getExample: 'crm dict list --help',
+        extraNotes: ['dict list requires --code <code>; dictionary item code is not the same as a CRM record ID.'],
+    });
     dict
         .command('list')
         .description('List dictionary items')

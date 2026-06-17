@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const opportunity_1 = require("../../schemas/resources/opportunity");
+const help_1 = require("../../utils/help");
 function searchCommand(opportunity) {
     opportunity
         .command('search')
@@ -80,6 +81,7 @@ Notes:
   - Use --json for machine-readable output
   - Use --verbose to see detailed filter logic
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm opportunity search', 'opportunity', 'use the returned id for opportunity get/update/assign/stage/products'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

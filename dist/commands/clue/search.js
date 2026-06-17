@@ -10,6 +10,7 @@ const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const clue_1 = require("../../schemas/resources/clue");
 const param_builder_1 = require("../../utils/param-builder");
+const help_1 = require("../../utils/help");
 function searchCommand(clue) {
     clue
         .command('search')
@@ -38,6 +39,7 @@ Notes:
   - Maximum page size is 500 records
   - Use --json for machine-readable output
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm clue search', 'clue/lead', 'use the returned id for clue get/convert/update'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

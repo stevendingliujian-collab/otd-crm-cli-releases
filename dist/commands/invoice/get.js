@@ -42,6 +42,13 @@ Notes:
   - Also shown as "Receivable ID" in 'crm invoice create' output
   - Returns all invoice records (invoices[]) for the given receivable item
 `)
+        .addHelpText('after', `
+AI usage guidance:
+  - This command reads invoice records under one receivable item.
+  - The <receivableId> argument must be a receivable ID from 'crm invoice search' or 'crm receivable search' output.
+  - Do not pass invoice record id, contract code, customer name, or keyword as <receivableId>.
+  - If you only know a customer or contract, run 'crm invoice search' or 'crm receivable search' first.
+`)
         .action(async (receivableId, options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

@@ -10,6 +10,7 @@ const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const contact_1 = require("../../schemas/resources/contact");
 const param_builder_1 = require("../../utils/param-builder");
+const help_1 = require("../../utils/help");
 function searchCommand(contact) {
     contact
         .command('search')
@@ -17,6 +18,7 @@ function searchCommand(contact) {
         .option('-k, --keyword <keyword>', 'Search keyword')
         .option('-p, --page <page>', 'Page number', '1')
         .option('-s, --size <size>', 'Page size', '20')
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm contact search', 'contact'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

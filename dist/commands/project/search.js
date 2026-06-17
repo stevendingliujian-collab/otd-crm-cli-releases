@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const project_1 = require("../../schemas/resources/project");
+const help_1 = require("../../utils/help");
 function searchCommand(project) {
     project
         .command('search')
@@ -37,6 +38,7 @@ function searchCommand(project) {
         .option('--sort-desc', 'Sort descending')
         .option('-p, --page <page>', 'Page number', '1')
         .option('-s, --size <size>', 'Page size', '20')
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm project search', 'project', 'project code may be used for recognition, but project get/update/delete use id'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

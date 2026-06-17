@@ -95,6 +95,21 @@ Common Commands:
   crm contract search         Search contracts
   crm task search             Search TMS task items
 
+How to read help:
+  This page only shows top-level commands and global options.
+  It does not show the optional filters for business commands.
+  To see optional parameters, always open the exact command and subcommand help:
+    $ crm <command> --help
+    $ crm <command> <subcommand> --help
+
+AI/Automation guidance:
+  - If you need to find a record, use search/list first.
+  - Search/list results are mainly for obtaining the record id.
+  - Use the returned id for get/update/assign/delete and record linking.
+  - Code can also be useful for humans and for commands that explicitly accept code.
+  - get commands read one exact record by id; do not pass name/code/keyword to get.
+  - When parsing output programmatically, add --json.
+
 Global Options:
   --profile <name>            Switch between multiple CRM accounts (default: "default")
                               Example: crm --profile staging customer search

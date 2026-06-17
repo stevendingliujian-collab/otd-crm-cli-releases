@@ -9,6 +9,7 @@ const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
+const help_1 = require("../../utils/help");
 const ReceivableSchema = zod_1.z.object({
     id: zod_1.z.string(),
     contractCode: zod_1.z.string().optional().nullable(),
@@ -61,6 +62,7 @@ Notes:
   - --actual-from/to filters by 实际收款日期
   - --contract filters by contract code (not ID)
 `)
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm receivable search', 'receivable item', 'contract filter accepts contract code because the option is --contract <code>'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

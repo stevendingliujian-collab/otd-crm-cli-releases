@@ -11,10 +11,17 @@ const update_1 = require("./update");
 const assign_1 = require("./assign");
 const statuses_1 = require("./statuses");
 const comment_1 = require("./comment");
+const help_1 = require("../../utils/help");
 function registerTaskCommands(program) {
     const task = program
         .command('task')
         .description('Task management commands');
+    (0, help_1.addCommandGroupHelp)(task, {
+        command: 'task',
+        resource: 'task',
+        searchExample: 'crm task search --help',
+        getExample: 'crm task get --help',
+    });
     (0, search_1.searchCommand)(task);
     (0, get_1.getCommand)(task);
     (0, create_1.createCommand)(task);

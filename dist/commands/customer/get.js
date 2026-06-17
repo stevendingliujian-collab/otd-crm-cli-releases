@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const customer_1 = require("../../schemas/resources/customer");
+const help_1 = require("../../utils/help");
 // API 直接返回数据对象,不需要包装
 const GetResponseSchema = customer_1.CustomerSchema;
 function getCommand(customer) {
@@ -32,6 +33,7 @@ Notes:
   - Use --json for machine-readable output
   - Use --fields to customize output columns (table format only)
 `)
+        .addHelpText('after', (0, help_1.getByIdHelp)('customer get', 'customer', 'crm customer search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

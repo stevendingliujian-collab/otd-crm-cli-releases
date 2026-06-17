@@ -8,12 +8,14 @@ const http_client_1 = require("../../core/client/http-client");
 const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const followup_1 = require("../../schemas/resources/followup");
+const help_1 = require("../../utils/help");
 function getCommand(followup) {
     followup
         .command('get <id>')
         .description('Get followup record by ID')
         .option('--json', 'Output as JSON (default)')
         .option('--format <format>', 'Output format: json | text | markdown', 'json')
+        .addHelpText('after', (0, help_1.getByIdHelp)('followup get', 'followup record', 'crm followup search'))
         .action(async (id, options, command) => {
         try {
             const globalOpts = command.optsWithGlobals();

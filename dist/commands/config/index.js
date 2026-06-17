@@ -9,7 +9,16 @@ const formatter_1 = require("../../core/output/formatter");
 function configCommands(program) {
     const config = program
         .command('config')
-        .description('Configuration management');
+        .description('Configuration management')
+        .addHelpText('after', `
+How to choose a subcommand:
+  - Use get when reading one config key.
+  - Use set when writing one config key.
+
+Where to find optional parameters:
+  - This page lists only config subcommands.
+  - Run 'crm config <subcommand> --help' before using optional parameters.
+`);
     config
         .command('get <key>')
         .description('Get a configuration value')

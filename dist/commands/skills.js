@@ -47,7 +47,16 @@ const os = __importStar(require("os"));
 const SKILLS_SRC = path.join(__dirname, '../../skills');
 const SKILLS_DEST = path.join(os.homedir(), '.claude', 'skills');
 function skillsCommands(cli) {
-    const skills = cli.command('skills').description('Manage CRM Claude Code skills');
+    const skills = cli.command('skills').description('Manage CRM Claude Code skills')
+        .addHelpText('after', `
+How to choose a subcommand:
+  - Use list to inspect installed CRM skills.
+  - Use install to install or update CRM skills.
+
+Where to find optional parameters:
+  - This page lists only skills subcommands.
+  - Run 'crm skills <subcommand> --help' before using optional parameters.
+`);
     skills
         .command('install')
         .description('Install CRM skills into ~/.claude/skills/ for use in Claude Code')

@@ -9,10 +9,12 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const contract_1 = require("../../schemas/resources/contract");
+const help_1 = require("../../utils/help");
 function getCommand(contract) {
     contract
         .command('get <id>')
         .description('Get contract details by ID')
+        .addHelpText('after', (0, help_1.getByIdHelp)('contract get', 'contract', 'crm contract search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

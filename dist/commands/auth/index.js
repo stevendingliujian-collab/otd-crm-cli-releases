@@ -12,7 +12,17 @@ const register_1 = require("./register");
 function authCommands(program) {
     const auth = program
         .command('auth')
-        .description('Authentication commands');
+        .description('Authentication commands')
+        .addHelpText('after', `
+How to choose a subcommand:
+  - Use login/device to authenticate before CRM data commands.
+  - Use whoami to verify the active profile and tenant.
+  - Use logout to clear saved credentials.
+
+Where to find optional parameters:
+  - This page lists only auth subcommands.
+  - Run 'crm auth <subcommand> --help' before using optional parameters.
+`);
     (0, login_1.loginCommand)(auth);
     (0, logout_1.logoutCommand)(auth);
     (0, whoami_1.whoamiCommand)(auth);

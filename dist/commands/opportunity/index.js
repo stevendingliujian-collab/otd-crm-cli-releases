@@ -12,11 +12,19 @@ const assign_1 = require("./assign");
 const stages_1 = require("./stages");
 const stage_1 = require("./stage");
 const products_1 = require("./products");
+const help_1 = require("../../utils/help");
 function opportunityCommands(program) {
     const opportunity = program
         .command('opportunity')
         .description('Opportunity management commands')
         .alias('opp');
+    (0, help_1.addCommandGroupHelp)(opportunity, {
+        command: 'opportunity',
+        resource: 'opportunity',
+        searchExample: 'crm opportunity search --help',
+        getExample: 'crm opportunity get --help',
+        extraNotes: ['Alias crm opp is equivalent to crm opportunity.'],
+    });
     (0, search_1.searchCommand)(opportunity);
     (0, get_1.getCommand)(opportunity);
     (0, create_1.createCommand)(opportunity);

@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const contract_1 = require("../../schemas/resources/contract");
+const help_1 = require("../../utils/help");
 function searchCommand(contract) {
     contract
         .command('search')
@@ -28,6 +29,7 @@ function searchCommand(contract) {
         .option('--created-before <date>', 'Created time <= (YYYY-MM-DD)')
         .option('-p, --page <page>', 'Page number', '1')
         .option('-s, --size <size>', 'Page size', '20')
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm contract search', 'contract', 'contract code can be used by commands/options that explicitly ask for contract code; use id for contract get/update'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

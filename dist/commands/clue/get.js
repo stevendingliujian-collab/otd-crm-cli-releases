@@ -9,6 +9,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const clue_1 = require("../../schemas/resources/clue");
+const help_1 = require("../../utils/help");
 function getCommand(clue) {
     clue
         .command('get <id>')
@@ -30,6 +31,7 @@ Notes:
   - Use 'crm clue convert <id>' to convert this clue to a customer
   - Use --json for machine-readable output
 `)
+        .addHelpText('after', (0, help_1.getByIdHelp)('clue get', 'clue/lead', 'crm clue search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

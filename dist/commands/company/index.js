@@ -6,6 +6,7 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const company_1 = require("../../utils/company");
+const help_1 = require("../../utils/help");
 function outputCompanies(companies, globalOpts) {
     if (globalOpts.json) {
         console.log(JSON.stringify(companies, null, 2));
@@ -27,6 +28,13 @@ function companyCommands(program) {
     const company = program
         .command('company')
         .description('Company lookup commands (公司查询)');
+    (0, help_1.addCommandGroupHelp)(company, {
+        command: 'company',
+        resource: 'company',
+        searchExample: 'crm company search --help',
+        getExample: 'crm company list --help',
+        extraNotes: ['This command group currently has list/search only.'],
+    });
     company
         .command('list')
         .description('List companies')
@@ -69,6 +77,7 @@ function companyCommands(program) {
         .command('search')
         .description('Search companies by id, code, or name')
         .requiredOption('--keyword <keyword>', 'Search keyword')
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm company search', 'company', 'company search accepts id, code, or name as keyword'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

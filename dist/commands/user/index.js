@@ -8,6 +8,7 @@ const cli_error_1 = require("../../core/errors/cli-error");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const error_codes_1 = require("../../constants/error-codes");
 const user_search_1 = require("../../utils/user-search");
+const help_1 = require("../../utils/help");
 function parsePositiveInt(value) {
     const parsed = parseInt(value, 10);
     if (!Number.isFinite(parsed) || parsed < 1) {
@@ -19,6 +20,12 @@ function userCommands(program) {
     const user = program
         .command('user')
         .description('User lookup commands (人员查询)');
+    (0, help_1.addCommandGroupHelp)(user, {
+        command: 'user',
+        resource: 'user',
+        searchExample: 'crm user search --help',
+        getExample: 'crm user get --help',
+    });
     user
         .command('search')
         .description('Search users')
@@ -27,6 +34,7 @@ function userCommands(program) {
         .option('-s, --size <size>', 'Page size', parsePositiveInt, 10)
         .option('--active', 'Only active users')
         .option('--inactive', 'Only inactive users')
+        .addHelpText('after', (0, help_1.searchResultHelp)('crm user search', 'user'))
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
@@ -92,6 +100,7 @@ function userCommands(program) {
     user
         .command('get <id>')
         .description('Get user by ID')
+        .addHelpText('after', (0, help_1.getByIdHelp)('user get', 'user', 'crm user search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {

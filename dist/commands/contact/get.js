@@ -9,11 +9,13 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const contact_1 = require("../../schemas/resources/contact");
+const help_1 = require("../../utils/help");
 function getCommand(contact) {
     contact
         .command('get')
         .description('Get contact details by ID')
         .argument('<id>', 'Contact ID')
+        .addHelpText('after', (0, help_1.getByIdHelp)('contact get', 'contact', 'crm contact search'))
         .action(async (id, _options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
