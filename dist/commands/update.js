@@ -245,7 +245,23 @@ async function performUpdate(release) {
         });
     }
     catch (error) {
-        throw new Error(`安装失败。请手动执行：\n   ${release.installCommand}`);
+        const isShimCollision = typeof error?.stderr === 'string'
+            ? /EEXIST|already exists|File exists/i.test(error.stderr)
+            : false;
+        if (!isShimCollision) {
+            throw new Error(`安装失败。请手动执行：\n   ${release.installCommand}`);
+        }
+        const forcedInstallCommand = release.installCommand.replace('npm install -g ', 'npm install -g --force ');
+        console.log('   Detected existing npm shim, retrying with --force...\n');
+        try {
+            (0, child_process_1.execSync)(forcedInstallCommand, {
+                stdio: 'inherit',
+                env: { ...process.env },
+            });
+        }
+        catch (forceError) {
+            throw new Error(`安装失败。请手动执行：\n   ${forcedInstallCommand}`);
+        }
     }
     console.log('\n2. Verifying installation...');
     try {
