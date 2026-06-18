@@ -47,6 +47,8 @@ const child_process_1 = require("child_process");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const RELEASES_REPO = 'stevendingliujian-collab/otd-crm-cli-releases';
+const NPM_PACKAGE_NAME = 'otd-crm-cli';
+const NPM_REGISTRY = 'https://registry.npmjs.org/';
 /**
  * Update command implementation
  */
@@ -58,7 +60,10 @@ function updateCommand(cli) {
         .option('--force', 'Force update without confirmation')
         .option('--verbose', 'Show detailed output')
         .action(async (options) => {
-        await handleUpdate(options);
+        await handleUpdate({
+            ...options,
+            verbose: options.verbose || cli.opts().verbose || process.argv.includes('--verbose'),
+        });
     });
 }
 /**
@@ -76,6 +81,7 @@ async function handleUpdate(options) {
         if (options.verbose) {
             console.log(`📦 Latest version: ${latestRelease.version}`);
             console.log(`📅 Published: ${latestRelease.publishedAt}`);
+            console.log(`📡 Source: ${latestRelease.source}`);
         }
         // Compare versions
         if (compareVersions(currentVersion, latestRelease.version) >= 0) {
@@ -86,7 +92,7 @@ async function handleUpdate(options) {
         console.log(`   Current:  ${currentVersion}`);
         console.log(`   Latest:   ${latestRelease.version}`);
         console.log(`   Release:  ${latestRelease.url}`);
-        console.log(`   Install:  npm install -g ${latestRelease.tarballUrl}\n`);
+        console.log(`   Install:  ${latestRelease.installCommand}\n`);
         // If --check only, stop here
         if (options.check) {
             return;
@@ -108,13 +114,14 @@ async function handleUpdate(options) {
         }
         // Step 2: Perform update
         console.log('\n⬇️  Updating...\n');
-        await performUpdate(latestRelease.tarballUrl, latestRelease.version);
+        await performUpdate(latestRelease);
         console.log('\n✅ Update successful!');
         console.log(`🎉 CRM CLI updated to v${latestRelease.version}\n`);
     }
     catch (error) {
         console.error('❌ Update failed:', error instanceof Error ? error.message : error);
         console.error('\n💡 You can manually update by running:');
+        console.error(`   npm install -g ${NPM_PACKAGE_NAME} --registry ${NPM_REGISTRY}`);
         console.error(`   npm install -g https://github.com/${RELEASES_REPO}/releases/latest/download/otd-crm-cli-latest.tgz\n`);
         process.exit(1);
     }
@@ -128,9 +135,45 @@ function getCurrentVersion() {
     return packageData.version || 'unknown';
 }
 /**
- * Get latest release info from GitHub Releases API (public releases repo)
+ * Get latest release info from npmjs, falling back to GitHub Releases.
  */
 async function getLatestRelease() {
+    try {
+        return await getLatestNpmRelease();
+    }
+    catch (npmError) {
+        return getLatestGitHubRelease(npmError);
+    }
+}
+/**
+ * Get latest package info from npmjs.
+ */
+async function getLatestNpmRelease() {
+    const response = await axios_1.default.get(`${NPM_REGISTRY}${NPM_PACKAGE_NAME}/latest`, {
+        timeout: 10000,
+        headers: {
+            'User-Agent': 'crm-cli-update',
+            'Accept': 'application/json',
+        },
+    });
+    const manifest = response.data;
+    if (!manifest || !manifest.version) {
+        throw new Error('No npm version found');
+    }
+    const installSpec = `${NPM_PACKAGE_NAME}@${manifest.version}`;
+    return {
+        version: manifest.version,
+        publishedAt: manifest.time?.[manifest.version] || new Date().toISOString(),
+        url: `https://www.npmjs.com/package/${NPM_PACKAGE_NAME}/v/${manifest.version}`,
+        source: 'npm',
+        installSpec,
+        installCommand: `npm install -g ${installSpec} --registry ${NPM_REGISTRY}`,
+    };
+}
+/**
+ * Get latest release info from GitHub Releases API (public releases repo).
+ */
+async function getLatestGitHubRelease(npmError) {
     try {
         const response = await axios_1.default.get(`https://api.github.com/repos/${RELEASES_REPO}/releases/latest`, {
             timeout: 15000,
@@ -153,15 +196,19 @@ async function getLatestRelease() {
             version,
             publishedAt: release.published_at || new Date().toISOString(),
             url: release.html_url,
-            tagName: release.tag_name,
-            tarballUrl,
+            source: 'github',
+            installSpec: tarballUrl,
+            installCommand: `npm install -g ${tarballUrl}`,
         };
     }
     catch (error) {
         // Re-throw with user-friendly message
         if (error.response || error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-            throw new Error('无法连接到 GitHub，请检查网络连接。\n\n' +
+            const npmMessage = npmError instanceof Error ? `npmjs: ${npmError.message}\n` : '';
+            throw new Error('无法连接到 npmjs 或 GitHub，请检查网络连接。\n\n' +
+                npmMessage +
                 '手动更新方法：\n' +
+                `  npm install -g ${NPM_PACKAGE_NAME} --registry ${NPM_REGISTRY}\n` +
                 `  npm install -g https://github.com/${RELEASES_REPO}/releases/latest/download/otd-crm-cli-latest.tgz`);
         }
         throw error;
@@ -185,19 +232,20 @@ function compareVersions(v1, v2) {
     return 0;
 }
 /**
- * Perform the actual update via npm install -g <tarball-url>
+ * Perform the actual update via npm.
  */
-async function performUpdate(tarballUrl, targetVersion) {
-    console.log(`1. Installing v${targetVersion} from GitHub Releases...`);
-    console.log(`   ${tarballUrl}\n`);
+async function performUpdate(release) {
+    const sourceLabel = release.source === 'npm' ? 'npmjs' : 'GitHub Releases';
+    console.log(`1. Installing v${release.version} from ${sourceLabel}...`);
+    console.log(`   ${release.installCommand}\n`);
     try {
-        (0, child_process_1.execSync)(`npm install -g "${tarballUrl}"`, {
+        (0, child_process_1.execSync)(release.installCommand, {
             stdio: 'inherit',
             env: { ...process.env },
         });
     }
     catch (error) {
-        throw new Error(`安装失败。请手动执行：\n   npm install -g "${tarballUrl}"`);
+        throw new Error(`安装失败。请手动执行：\n   ${release.installCommand}`);
     }
     console.log('\n2. Verifying installation...');
     try {

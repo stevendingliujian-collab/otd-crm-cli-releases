@@ -1,11 +1,19 @@
 {
-  "name": "@otd/crm-cli",
+  "name": "otd-crm-cli",
   "version": "0.2.50",
   "description": "OTD CRM Command Line Interface",
   "main": "dist/index.js",
   "bin": {
     "crm": "bin/crm.js"
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "skills/",
+    "README.md",
+    "install.sh",
+    "install.ps1"
+  ],
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
@@ -65,7 +73,6 @@
     "url": "https://github.com/stevendingliujian-collab/otd-crm-cli.git"
   },
   "publishConfig": {
-    "registry": "https://registry.npmjs.org",
-    "access": "public"
+    "registry": "https://registry.npmjs.org"
   }
 }

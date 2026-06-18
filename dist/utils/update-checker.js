@@ -45,6 +45,9 @@ const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const CACHE_FILE = path.join(__dirname, '../../.version-cache.json');
 const CHECK_INTERVAL = 1000 * 60 * 60; // 1 hour
+const NPM_PACKAGE_NAME = 'otd-crm-cli';
+const NPM_REGISTRY = 'https://registry.npmjs.org/';
+const RELEASES_REPO = 'stevendingliujian-collab/otd-crm-cli-releases';
 /**
  * Check for updates and notify if new version available
  * Non-blocking, runs in background
@@ -115,12 +118,46 @@ function saveCache(cache) {
     }
 }
 /**
- * Fetch latest version from GitHub Releases API (public releases repo).
- * Uses /releases/latest which returns the most recently published release.
+ * Fetch latest version from npmjs, falling back to GitHub Releases.
  */
 async function fetchLatestVersion() {
+    const npmVersion = await fetchLatestNpmVersion();
+    if (npmVersion) {
+        return npmVersion;
+    }
+    const githubVersion = await fetchLatestGitHubVersion();
+    if (githubVersion) {
+        return githubVersion;
+    }
+    return getCurrentVersion();
+}
+/**
+ * Fetch latest version from npmjs.
+ */
+async function fetchLatestNpmVersion() {
     try {
-        const response = await axios_1.default.get('https://api.github.com/repos/stevendingliujian-collab/otd-crm-cli-releases/releases/latest', {
+        const response = await axios_1.default.get(`${NPM_REGISTRY}${NPM_PACKAGE_NAME}/latest`, {
+            timeout: 5000,
+            headers: {
+                'User-Agent': 'crm-cli-update-checker',
+                'Accept': 'application/json',
+            },
+        });
+        if (response.data && response.data.version) {
+            return response.data.version;
+        }
+    }
+    catch (error) {
+        // npmjs not accessible, fall back to GitHub silently
+    }
+    return null;
+}
+/**
+ * Fetch latest version from GitHub Releases API (public releases repo).
+ */
+async function fetchLatestGitHubVersion() {
+    try {
+        const response = await axios_1.default.get(`https://api.github.com/repos/${RELEASES_REPO}/releases/latest`, {
             timeout: 5000,
             headers: {
                 'User-Agent': 'crm-cli-update-checker',
@@ -134,7 +171,7 @@ async function fetchLatestVersion() {
     catch (error) {
         // GitHub not accessible, return current version silently
     }
-    return getCurrentVersion();
+    return null;
 }
 /**
  * Compare two version strings
