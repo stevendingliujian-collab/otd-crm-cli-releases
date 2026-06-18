@@ -245,14 +245,20 @@ async function performUpdate(release) {
         });
     }
     catch (error) {
-        const isShimCollision = typeof error?.stderr === 'string'
-            ? /EEXIST|already exists|File exists/i.test(error.stderr)
-            : false;
+        const installErrorText = [
+            error?.message,
+            typeof error?.stderr === 'string' ? error.stderr : '',
+            typeof error?.stdout === 'string' ? error.stdout : '',
+        ]
+            .filter(Boolean)
+            .join('\n');
+        const isShimCollision = /EEXIST|already exists|File exists|crm\.ps1|crm\.cmd|\\crm\b/i.test(installErrorText);
         if (!isShimCollision) {
             throw new Error(`安装失败。请手动执行：\n   ${release.installCommand}`);
         }
         const forcedInstallCommand = release.installCommand.replace('npm install -g ', 'npm install -g --force ');
-        console.log('   Detected existing npm shim, retrying with --force...\n');
+        console.log('   Detected existing npm shim, cleaning up leftovers and retrying...\n');
+        cleanupGlobalInstallArtifacts();
         try {
             (0, child_process_1.execSync)(forcedInstallCommand, {
                 stdio: 'inherit',
@@ -271,6 +277,34 @@ async function performUpdate(release) {
     catch (error) {
         // Non-fatal: install succeeded even if version check fails
         console.log('   (version check skipped)');
+    }
+}
+/**
+ * Remove stale global npm artifacts that can block Windows installs.
+ */
+function cleanupGlobalInstallArtifacts() {
+    try {
+        const prefix = (0, child_process_1.execSync)('npm config get prefix', { encoding: 'utf-8' }).trim();
+        const candidates = [
+            path.join(prefix, 'crm'),
+            path.join(prefix, 'crm.cmd'),
+            path.join(prefix, 'crm.ps1'),
+            path.join(prefix, 'node_modules', NPM_PACKAGE_NAME),
+            path.join(prefix, 'node_modules', '@otd', 'crm-cli'),
+        ];
+        for (const target of candidates) {
+            try {
+                if (fs.existsSync(target)) {
+                    fs.rmSync(target, { recursive: true, force: true });
+                }
+            }
+            catch (cleanupError) {
+                // Ignore cleanup errors; install retry may still succeed.
+            }
+        }
+    }
+    catch (error) {
+        // Ignore prefix lookup errors and continue with retry.
     }
 }
 //# sourceMappingURL=update.js.map
