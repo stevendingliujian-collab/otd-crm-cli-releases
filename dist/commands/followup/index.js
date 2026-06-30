@@ -8,6 +8,7 @@ const search_1 = require("./search");
 const create_1 = require("./create");
 const get_1 = require("./get");
 const update_1 = require("./update");
+const comment_1 = require("./comment");
 const help_1 = require("../../utils/help");
 function followupCommands(program) {
     const followup = program
@@ -23,5 +24,6 @@ function followupCommands(program) {
     (0, get_1.getCommand)(followup);
     (0, create_1.createCommand)(followup);
     (0, update_1.updateFollowupCommand)(followup);
+    (0, comment_1.commentCommand)(followup);
 }
 //# sourceMappingURL=index.js.map

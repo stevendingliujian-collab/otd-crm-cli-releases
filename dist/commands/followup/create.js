@@ -52,9 +52,11 @@ function createCommand(followup) {
         .requiredOption('--related-type <type>', 'Related object type: business(0), customer(1), contact(2), project(4), clue(5), contract(6), receivable(7)')
         .requiredOption('--type <type>', 'Followup method: phone(1), wechat(2), visit(3), other(0)')
         .requiredOption('--content <content>', 'Followup content (min 10 chars)')
-        .requiredOption('--related-title <title>', 'Related object name (显示用，如客户名/商机名/应收款名)')
-        .requiredOption('--date <date>', 'Followup date (YYYY-MM-DD)')
+        .option('--related-title <title>', 'Related object name (显示用，如客户名/商机名/应收款名)')
+        .option('--date <date>', 'Followup date (YYYY-MM-DD)')
         .option('--next-plan <plan>', 'Next step plan')
+        .option('--file-id <id...>', 'Attach file ID(s)')
+        .option('--at-user <id...>', 'Mention user ID(s)')
         .option('--json', 'Output as JSON')
         .addHelpText('after', `
 关联对象类型 (--related-type):
@@ -86,6 +88,12 @@ Examples:
       --related-id <businessId> --related-type business \\
       --type wechat --content "微信确认方案细节，客户已收到报价单，需要内部讨论" \\
       --json
+
+  $ crm followup create \\
+      --related-id <customerId> --related-type customer \\
+      --type phone --content "电话沟通，确认交付计划" \\
+      --file-id <fileId1> <fileId2> \\
+      --at-user <userId1> <userId2>
 `)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
@@ -101,12 +109,15 @@ Examples:
                 type: followupType,
                 content: options.content,
             };
-            body.relatedTitle = options.relatedTitle;
-            body.followUpDate = options.date.includes('T')
-                ? options.date
-                : new Date(options.date + 'T00:00:00.000Z').toISOString();
+            if (options.relatedTitle)
+                body.relatedTitle = options.relatedTitle;
+            body.followUpDate = normalizeDate(options.date ?? new Date().toISOString());
             if (options.nextPlan)
                 body.nextPlan = options.nextPlan;
+            if (options.fileId)
+                body.fileIds = Array.isArray(options.fileId) ? options.fileId : [options.fileId];
+            if (options.atUser)
+                body.atUsers = Array.isArray(options.atUser) ? options.atUser : [options.atUser];
             const client = (0, http_client_1.createClient)(profile);
             const response = await client.post('/api/crm/followup/create', body, { traceId });
             const parseResult = followup_1.FollowupSchema.safeParse(response);
@@ -153,5 +164,8 @@ Examples:
             process.exit(1);
         }
     });
+}
+function normalizeDate(value) {
+    return value.includes('T') ? value : new Date(`${value}T00:00:00.000Z`).toISOString();
 }
 //# sourceMappingURL=create.js.map
