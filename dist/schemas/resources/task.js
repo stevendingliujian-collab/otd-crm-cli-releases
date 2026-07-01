@@ -21,6 +21,8 @@ exports.TaskSchema = zod_1.z.object({
     completedDate: zod_1.z.string().nullable().optional(),
     relatedId: zod_1.z.string().nullable().optional(),
     relatedType: zod_1.z.number().nullable().optional(),
+    subRelatedType: zod_1.z.string().nullable().optional(),
+    relatedName: zod_1.z.string().nullable().optional(),
     createdTime: zod_1.z.string().nullable().optional(),
     updatedTime: zod_1.z.string().nullable().optional(),
 }).passthrough(); // Allow extra fields

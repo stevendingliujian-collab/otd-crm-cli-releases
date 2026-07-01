@@ -18,6 +18,8 @@ export declare const TaskSchema: z.ZodObject<{
     completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
@@ -36,6 +38,8 @@ export declare const TaskSchema: z.ZodObject<{
     completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
@@ -54,6 +58,8 @@ export declare const TaskSchema: z.ZodObject<{
     completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.ZodTypeAny, "passthrough">>;
@@ -75,6 +81,8 @@ export declare const TaskListResponseSchema: z.ZodObject<{
         completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
@@ -93,6 +101,8 @@ export declare const TaskListResponseSchema: z.ZodObject<{
         completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
@@ -111,6 +121,8 @@ export declare const TaskListResponseSchema: z.ZodObject<{
         completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.ZodTypeAny, "passthrough">>, "many">;
@@ -132,6 +144,8 @@ export declare const TaskListResponseSchema: z.ZodObject<{
         completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.ZodTypeAny, "passthrough">[];
@@ -153,6 +167,8 @@ export declare const TaskListResponseSchema: z.ZodObject<{
         completedDate: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         relatedType: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+        subRelatedType: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        relatedName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         createdTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         updatedTime: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     }, z.ZodTypeAny, "passthrough">[];

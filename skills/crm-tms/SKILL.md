@@ -76,7 +76,15 @@ crm task get <task_id> --json
 
 ```bash
 crm task create --title "新任务" --description "说明" --json
+crm task create --title "新任务" --related-id <relatedId> --related-type 5 --sub-related-type Opportunities --related-name "关联项名称" --json
 ```
+
+创建 CRM 来源任务时：
+
+- `--related-type` 固定传 `5`，表示 `OtdCrm`
+- `--sub-related-type` 传 CRM 来源模块字符串：`Leads`、`Contacts`、`Opportunities`、`Accounts`、`Contracts`、`Projects`、`Procurements`、`Delivery`
+- `--related-id` 传来源项 ID
+- `--related-name` 传来源项名称
 
 ### 4. 更新负责人
 

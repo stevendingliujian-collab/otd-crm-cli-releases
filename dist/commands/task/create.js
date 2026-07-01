@@ -9,6 +9,24 @@ const formatter_1 = require("../../core/output/formatter");
 const error_handler_1 = require("../../core/errors/error-handler");
 const audit_logger_1 = require("../../core/audit/audit-logger");
 const task_1 = require("../../schemas/resources/task");
+const RELATED_TYPE_HELP = [
+    '0 Meeting',
+    '1 ThirdParty',
+    '2 Others',
+    '3 Project',
+    '4 Manually',
+    '5 OtdCrm',
+].join(', ');
+const CRM_SUB_RELATED_TYPE_HELP = [
+    'Leads',
+    'Contacts',
+    'Opportunities',
+    'Accounts',
+    'Contracts',
+    'Projects',
+    'Procurements',
+    'Delivery',
+].join(', ');
 function createCommand(task) {
     task
         .command('create')
@@ -20,7 +38,29 @@ function createCommand(task) {
         .option('--status <status>', 'Task status (number)')
         .option('--due-date <dueDate>', 'Due date (YYYY-MM-DD)')
         .option('--related-id <relatedId>', 'Related resource ID')
-        .option('--related-type <relatedType>', 'Related resource type (number)')
+        .option('--related-type <relatedType>', `Related source type (number): ${RELATED_TYPE_HELP}`)
+        .option('--sub-related-type <subRelatedType>', `CRM source module when --related-type is 5: ${CRM_SUB_RELATED_TYPE_HELP}`)
+        .option('--related-name <relatedName>', 'Related resource name')
+        .addHelpText('after', `
+Related source type (--related-type):
+  0 Meeting
+  1 ThirdParty
+  2 Others
+  3 Project
+  4 Manually
+  5 OtdCrm
+
+CRM source module (--sub-related-type, used with --related-type 5):
+  Leads, Contacts, Opportunities, Accounts, Contracts, Projects, Procurements, Delivery
+
+Examples:
+  $ crm task create --title "新任务" \\
+      --related-id <opportunityId> \\
+      --related-type 5 \\
+      --sub-related-type Opportunities \\
+      --related-name "关联项名称" \\
+      --json
+`)
         .action(async (options, command) => {
         const traceId = audit_logger_1.auditLogger.generateTraceId();
         try {
@@ -45,6 +85,10 @@ function createCommand(task) {
                 requestBody.relatedId = options.relatedId;
             if (options.relatedType)
                 requestBody.relatedType = parseInt(options.relatedType, 10);
+            if (options.subRelatedType)
+                requestBody.subRelatedType = options.subRelatedType;
+            if (options.relatedName)
+                requestBody.relatedName = options.relatedName;
             // Make API request
             const client = (0, http_client_1.createClient)(profile);
             const response = await client.post('/api/tms/taskItem/create', requestBody, {

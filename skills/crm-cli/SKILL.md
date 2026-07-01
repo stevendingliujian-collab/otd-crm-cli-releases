@@ -144,8 +144,15 @@ crm project create \
 
 ### 创建任务
 ```bash
-crm task create --title "任务标题" --related-id <opp_id> --related-type opportunity --json
+crm task create \
+  --title "任务标题" \
+  --related-id <opp_id> \
+  --related-type 5 \
+  --sub-related-type Opportunities \
+  --related-name "关联项名称" \
+  --json
 ```
+> CRM 来源任务：`--related-type` 传 `5`（OtdCrm），`--sub-related-type` 传来源模块字符串：`Leads`、`Contacts`、`Opportunities`、`Accounts`、`Contracts`、`Projects`、`Procurements`、`Delivery`。
 
 ### TMS 任务更新
 ```bash
